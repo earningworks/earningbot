@@ -1,0 +1,2 @@
+# GitHub Pages Bypass
+This file tells GitHub Pages not to use Jekyll for building the site. This ensures all your custom files and ad scripts are served exactly as they are.
