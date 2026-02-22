@@ -1,0 +1,285 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chess | Win ₹2000</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box
+        }
+
+        body {
+            background: #050505;
+            font-family: Arial, sans-serif;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: flex-start;
+            padding-top: 60px;
+            color: #fff
+        }
+
+        #back {
+            position: fixed;
+            top: 15px;
+            left: 15px;
+            z-index: 400;
+            background: rgba(0, 0, 0, .7);
+            color: #fff;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 10px;
+            cursor: pointer
+        }
+
+        h1 {
+            font-size: 1.5rem;
+            font-weight: 800;
+            margin-bottom: 10px;
+            background: linear-gradient(135deg, #fff, #fbbf24);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent
+        }
+
+        #info {
+            font-size: 0.85rem;
+            color: rgba(255, 255, 255, .6);
+            margin-bottom: 15px;
+            text-align: center
+        }
+
+        #reward-info {
+            font-size: 0.8rem;
+            color: #4ade80;
+            font-weight: 800;
+            margin-bottom: 10px
+        }
+
+        #status {
+            font-size: 1rem;
+            font-weight: 800;
+            color: #fbbf24;
+            margin-bottom: 10px;
+            min-height: 24px;
+            text-align: center
+        }
+
+        canvas {
+            border-radius: 12px;
+            max-width: 100vw;
+            max-height: 80vw;
+            cursor: pointer;
+            touch-action: none
+        }
+
+        #overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, .97);
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 300;
+            color: #fff;
+            gap: 16px;
+            text-align: center;
+            padding: 20px
+        }
+
+        .btn {
+            padding: 14px 32px;
+            border-radius: 12px;
+            border: none;
+            font-size: 1rem;
+            font-weight: 800;
+            cursor: pointer;
+            text-decoration: none;
+            display: inline-block;
+            margin: 4px
+        }
+
+        .btn-g {
+            background: #4ade80;
+            color: #000
+        }
+
+        .btn-r {
+            background: #ff4500;
+            color: #fff
+        }
+
+        .btn-d {
+            background: #222;
+            color: #fff
+        }
+
+        #timer {
+            position: fixed;
+            top: 15px;
+            right: 15px;
+            background: rgba(0, 0, 0, .8);
+            padding: 8px 16px;
+            border-radius: 10px;
+            font-weight: 800;
+            border: 1px solid rgba(255, 255, 255, .1)
+        }
+    </style>
+</head>
+
+<body>
+    <button id="back" onclick="location.href='index.html'">← Back</button>
+    <div id="timer">⏱️ <span id="tdisp">300</span>s</div>
+    <h1>♟ Chess</h1>
+    <div id="reward-info">Checkmate AI to WIN ₹2,000!</div>
+    <div id="status">White's turn — Your move!</div>
+    <canvas id="board" width="480" height="480"></canvas>
+
+    <div id="overlay">
+        <div style="font-size:3rem" id="over-ico">🏆</div>
+        <h2 id="over-title" style="font-size:2rem">YOU WIN!</h2>
+        <p id="over-msg">Checkmate! You win ₹2,000</p>
+        <div id="over-btns"></div>
+    </div>
+
+    <script>
+        const REWARD_URL = "https://emotionallytonightintelligent.com/yefth1e9e?key=672ebfd27cb3a77872d539957b23a796";
+        const canvas = document.getElementById('board');
+        const ctx = canvas.getContext('2d');
+        const S = 60; // cell size
+        let sel = null, gameOver = false, playerTurn = true, time = 300;
+        let timerInt = setInterval(() => { time--; document.getElementById('tdisp').textContent = time; if (time <= 0) endGame(false, 'Time\'s up!'); }, 1000);
+
+        // Piece emojis [white, black]
+        const PIECES = {
+            P: ['♙', '♟'], R: ['♖', '♜'], N: ['♘', '♞'], B: ['♗', '♝'], Q: ['♕', '♛'], K: ['♔', '♚']
+        };
+
+        // Initial board
+        function makeBoard() {
+            return [
+                ['R', 'N', 'B', 'Q', 'K', 'B', 'N', 'R'].map(p => ({ t: p, c: 'b' })),
+                Array(8).fill(null).map(() => ({ t: 'P', c: 'b' })),
+                ...Array(4).fill(null).map(() => Array(8).fill(null)),
+                Array(8).fill(null).map(() => ({ t: 'P', c: 'w' })),
+                ['R', 'N', 'B', 'Q', 'K', 'B', 'N', 'R'].map(p => ({ t: p, c: 'w' }))
+            ];
+        }
+
+        let board = makeBoard();
+
+        function draw() {
+            for (let r = 0; r < 8; r++)for (let f = 0; f < 8; f++) {
+                ctx.fillStyle = (r + f) % 2 === 0 ? '#f0d9b5' : '#b58863';
+                ctx.fillRect(f * S, r * S, S, S);
+            }
+            if (sel) {
+                const moves = getLegalMoves(sel.r, sel.f);
+                ctx.fillStyle = 'rgba(0,255,100,0.35)';
+                ctx.fillRect(sel.f * S, sel.r * S, S, S);
+                moves.forEach(([mr, mf]) => { ctx.fillStyle = 'rgba(0,200,100,0.4)'; ctx.beginPath(); ctx.arc(mf * S + S / 2, mr * S + S / 2, 10, 0, Math.PI * 2); ctx.fill(); });
+            }
+            for (let r = 0; r < 8; r++)for (let f = 0; f < 8; f++) {
+                const p = board[r][f];
+                if (p) {
+                    ctx.font = `${S * 0.65}px serif`;
+                    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+                    ctx.fillStyle = p.c === 'w' ? '#fffde7' : '#1a1a1a';
+                    ctx.fillText(PIECES[p.t][p.c === 'w' ? 0 : 1], f * S + S / 2, r * S + S / 2 + 2);
+                }
+            }
+        }
+
+        function getLegalMoves(r, f) {
+            const moves = [];
+            const p = board[r][f];
+            if (!p) return moves;
+            const { t, c } = p;
+            const add = (nr, nf) => { if (nr < 0 || nr > 7 || nf < 0 || nf > 7) return false; const t2 = board[nr][nf]; if (t2 && t2.c === c) return false; moves.push([nr, nf]); return !t2; };
+            if (t === 'P') {
+                const dir = c === 'w' ? -1 : 1; const start = c === 'w' ? 6 : 1;
+                if (r + dir >= 0 && r + dir <= 7 && !board[r + dir][f]) moves.push([r + dir, f]);
+                if (r === start && !board[r + dir][f] && !board[r + 2 * dir][f]) moves.push([r + 2 * dir, f]);
+                [[dir, -1], [dir, 1]].forEach(([dr, df]) => { if (r + dr >= 0 && r + dr <= 7 && f + df >= 0 && f + df <= 7) { const t2 = board[r + dr][f + df]; if (t2 && t2.c !== c) moves.push([r + dr, f + df]); } });
+            } else if (t === 'R') { for (const [dr, df] of [[-1, 0], [1, 0], [0, -1], [0, 1]]) { let nr = r + dr, nf = f + df; while (add(nr, nf)) { nr += dr; nf += df; } } }
+            else if (t === 'B') { for (const [dr, df] of [[-1, -1], [-1, 1], [1, -1], [1, 1]]) { let nr = r + dr, nf = f + df; while (add(nr, nf)) { nr += dr; nf += df; } } }
+            else if (t === 'Q') { for (const [dr, df] of [[-1, 0], [1, 0], [0, -1], [0, 1], [-1, -1], [-1, 1], [1, -1], [1, 1]]) { let nr = r + dr, nf = f + df; while (add(nr, nf)) { nr += dr; nf += df; } } }
+            else if (t === 'N') { [[-2, -1], [-2, 1], [-1, -2], [-1, 2], [1, -2], [1, 2], [2, -1], [2, 1]].forEach(([dr, df]) => add(r + dr, f + df)); }
+            else if (t === 'K') { [[-1, -1], [-1, 0], [-1, 1], [0, -1], [0, 1], [1, -1], [1, 0], [1, 1]].forEach(([dr, df]) => add(r + dr, f + df)); }
+            return moves;
+        }
+
+        function movePiece(r, f, nr, nf) {
+            const killed = board[nr][nf];
+            board[nr][nf] = board[r][f]; board[r][f] = null;
+            if (killed && killed.t === 'K') return killed;
+            // Promote pawn
+            if (board[nr][nf].t === 'P' && (nr === 0 || nr === 7)) board[nr][nf].t = 'Q';
+            return null;
+        }
+
+        function aiMove() {
+            const moves = [];
+            for (let r = 0; r < 8; r++)for (let f = 0; f < 8; f++) {
+                const p = board[r][f]; if (p && p.c === 'b') {
+                    getLegalMoves(r, f).forEach(([nr, nf]) => moves.push({ r, f, nr, nf, val: board[nr][nf] ? { P: 1, N: 3, B: 3, R: 5, Q: 9, K: 100 }[board[nr][nf].t] || 0 : 0 }));
+                }
+            }
+            if (!moves.length) return;
+            moves.sort((a, b) => b.val - a.val);
+            const topMoves = moves.slice(0, Math.min(5, moves.length));
+            const m = topMoves[Math.floor(Math.random() * topMoves.length)];
+            const killed = movePiece(m.r, m.f, m.nr, m.nf);
+            if (killed && killed.t === 'K') { endGame(false, 'AI wins! Checkmate!'); return; }
+            playerTurn = true;
+            document.getElementById('status').textContent = "Your turn!";
+            draw();
+        }
+
+        function endGame(win, msg) {
+            if (gameOver) return; gameOver = true; clearInterval(timerInt);
+            const ol = document.getElementById('overlay'); ol.style.display = 'flex';
+            document.getElementById('over-ico').textContent = win ? '🏆' : '😔';
+            document.getElementById('over-title').textContent = win ? 'CHECKMATE! ₹2,000' : 'GAME OVER';
+            document.getElementById('over-msg').textContent = msg || '';
+            document.getElementById('over-btns').innerHTML = win
+                ? `<a href="${REWARD_URL}" target="_blank" class="btn btn-g">💰 REDEEM ₹2,000</a><br><button class="btn btn-d" onclick="location.reload()">New Game</button>`
+                : `<button class="btn btn-r" onclick="location.reload()">🔄 TRY AGAIN</button><button class="btn btn-d" onclick="location.href='index.html'">← Home</button>`;
+        }
+
+        canvas.addEventListener('click', e => {
+            if (gameOver || !playerTurn) return;
+            const rect = canvas.getBoundingClientRect();
+            const sx = canvas.width / rect.width; const sy = canvas.height / rect.height;
+            const f = Math.floor((e.clientX - rect.left) * sx / S);
+            const r = Math.floor((e.clientY - rect.top) * sy / S);
+            if (r < 0 || r > 7 || f < 0 || f > 7) return;
+
+            if (sel) {
+                const moves = getLegalMoves(sel.r, sel.f);
+                if (moves.some(([mr, mf]) => mr === r && mf === f)) {
+                    const killed = movePiece(sel.r, sel.f, r, f);
+                    sel = null;
+                    if (killed && killed.t === 'K') { endGame(true, 'Checkmate! You win!'); draw(); return; }
+                    playerTurn = false;
+                    document.getElementById('status').textContent = "AI thinking...";
+                    draw(); setTimeout(aiMove, 600);
+                } else if (board[r][f] && board[r][f].c === 'w') {
+                    sel = { r, f }; draw();
+                } else { sel = null; draw(); }
+            } else {
+                if (board[r][f] && board[r][f].c === 'w') { sel = { r, f }; draw(); }
+            }
+        });
+
+        draw();
+        document.getElementById('status').textContent = "Your turn! (White)";
+    </script>
+</body>
+
+</html>

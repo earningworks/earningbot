@@ -1,0 +1,326 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sudoku | Win ₹1500</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box
+        }
+
+        body {
+            background: #050505;
+            font-family: Arial, sans-serif;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            color: #fff;
+            padding: 60px 10px 20px
+        }
+
+        #back {
+            position: fixed;
+            top: 15px;
+            left: 15px;
+            background: rgba(0, 0, 0, .7);
+            color: #fff;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 10px;
+            cursor: pointer
+        }
+
+        h1 {
+            font-size: 1.5rem;
+            font-weight: 800;
+            margin-bottom: 5px;
+            background: linear-gradient(135deg, #00d2ff, #4ade80);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent
+        }
+
+        #reward {
+            color: #4ade80;
+            font-weight: 800;
+            font-size: .85rem;
+            margin-bottom: 8px
+        }
+
+        #timer {
+            font-size: 1rem;
+            color: #fbbf24;
+            font-weight: 800;
+            margin-bottom: 10px
+        }
+
+        #grid {
+            display: grid;
+            grid-template-columns: repeat(9, 1fr);
+            gap: 1px;
+            background: #444;
+            border: 3px solid #888;
+            width: min(360px, 95vw);
+            height: min(360px, 95vw);
+            margin-bottom: 15px
+        }
+
+        .cell {
+            background: #111;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.1rem;
+            font-weight: 700;
+            cursor: pointer;
+            border: none;
+            transition: background .1s;
+            aspect-ratio: 1
+        }
+
+        .cell:hover {
+            background: #1a1a2e
+        }
+
+        .cell.selected {
+            background: #1a3a5e
+        }
+
+        .cell.given {
+            color: #fff;
+            background: #0a0a1a;
+            cursor: default
+        }
+
+        .cell.editable {
+            color: #4ade80
+        }
+
+        .cell.error {
+            background: #2d0808;
+            color: #ff4444
+        }
+
+        .cell.box-right {
+            border-right: 2px solid #888
+        }
+
+        .cell.box-bottom {
+            border-bottom: 2px solid #888
+        }
+
+        #numpad {
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            gap: 8px;
+            width: min(360px, 95vw)
+        }
+
+        .num-btn {
+            background: #1a1a2e;
+            color: #fff;
+            border: none;
+            padding: 12px;
+            border-radius: 10px;
+            font-size: 1.1rem;
+            font-weight: 800;
+            cursor: pointer;
+            border: 1px solid rgba(255, 255, 255, .1)
+        }
+
+        .num-btn:hover {
+            background: #2a2a4e
+        }
+
+        #erase {
+            background: #2d0808;
+            color: #ff4444
+        }
+
+        .btn {
+            padding: 10px 24px;
+            border-radius: 10px;
+            border: none;
+            font-size: .9rem;
+            font-weight: 800;
+            cursor: pointer;
+            text-decoration: none;
+            display: inline-block;
+            margin: 4px
+        }
+
+        .btn-g {
+            background: #4ade80;
+            color: #000
+        }
+
+        .btn-r {
+            background: #ff4500;
+            color: #fff
+        }
+
+        .btn-d {
+            background: #222;
+            color: #fff
+        }
+
+        #status {
+            font-size: .85rem;
+            color: rgba(255, 255, 255, .6);
+            margin-bottom: 8px;
+            text-align: center
+        }
+
+        #overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, .97);
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 300;
+            color: #fff;
+            gap: 16px;
+            text-align: center;
+            padding: 20px
+        }
+    </style>
+</head>
+
+<body>
+    <button id="back" onclick="location.href='index.html'">← Back</button>
+    <h1>🧩 Sudoku</h1>
+    <div id="reward">Solve the puzzle to WIN ₹1,500!</div>
+    <div id="timer">⏱️ <span id="tdisp">0:00</span></div>
+    <div id="status">Select a cell, then tap a number</div>
+    <div id="grid"></div>
+    <div id="numpad">
+        <button class="num-btn" onclick="enterNum(1)">1</button>
+        <button class="num-btn" onclick="enterNum(2)">2</button>
+        <button class="num-btn" onclick="enterNum(3)">3</button>
+        <button class="num-btn" onclick="enterNum(4)">4</button>
+        <button class="num-btn" onclick="enterNum(5)">5</button>
+        <button class="num-btn" onclick="enterNum(6)">6</button>
+        <button class="num-btn" onclick="enterNum(7)">7</button>
+        <button class="num-btn" onclick="enterNum(8)">8</button>
+        <button class="num-btn" onclick="enterNum(9)">9</button>
+        <button class="num-btn" id="erase" onclick="enterNum(0)">✕</button>
+    </div>
+    <div style="margin-top:15px; display:flex; gap:10px">
+        <button class="btn btn-d" onclick="newGame()">New Puzzle</button>
+        <button class="btn btn-g" onclick="checkSolution()">Check</button>
+    </div>
+
+    <div id="overlay">
+        <div style="font-size:3rem" id="over-ico">🏆</div>
+        <h2 id="over-title" style="font-size:2rem"></h2>
+        <p id="over-msg"></p>
+        <div id="over-btns"></div>
+    </div>
+
+    <script>
+        const REWARD_URL = "https://emotionallytonightintelligent.com/yefth1e9e?key=672ebfd27cb3a77872d539957b23a796";
+        let selectedCell = null, board = [], solution = [], givenMask = [], seconds = 0, timerInt;
+
+        // A solved Sudoku puzzle
+        const SOLVED = [
+            [5, 3, 4, 6, 7, 8, 9, 1, 2], [6, 7, 2, 1, 9, 5, 3, 4, 8], [1, 9, 8, 3, 4, 2, 5, 6, 7],
+            [8, 5, 9, 7, 6, 1, 4, 2, 3], [4, 2, 6, 8, 5, 3, 7, 9, 1], [7, 1, 3, 9, 2, 4, 8, 5, 6],
+            [9, 6, 1, 5, 3, 7, 2, 8, 4], [2, 8, 7, 4, 1, 9, 6, 3, 5], [3, 4, 5, 2, 8, 6, 1, 7, 9]
+        ];
+        const SOLVED2 = [
+            [1, 2, 3, 4, 5, 6, 7, 8, 9], [4, 5, 6, 7, 8, 9, 1, 2, 3], [7, 8, 9, 1, 2, 3, 4, 5, 6],
+            [2, 3, 4, 5, 6, 7, 8, 9, 1], [5, 6, 7, 8, 9, 1, 2, 3, 4], [8, 9, 1, 2, 3, 4, 5, 6, 7],
+            [3, 4, 5, 6, 7, 8, 9, 1, 2], [6, 7, 8, 9, 1, 2, 3, 4, 5], [9, 1, 2, 3, 4, 5, 6, 7, 8]
+        ];
+
+        function genPuzzle() {
+            const src = Math.random() > 0.5 ? SOLVED : SOLVED2;
+            solution = src.map(r => [...r]);
+            board = src.map(r => [...r]);
+            givenMask = Array.from({ length: 9 }, () => Array(9).fill(false));
+            // Remove ~45 cells
+            let removed = 0;
+            while (removed < 45) {
+                const r = Math.floor(Math.random() * 9);
+                const c = Math.floor(Math.random() * 9);
+                if (board[r][c] !== 0) { board[r][c] = 0; removed++; }
+            }
+            // Mark givens
+            for (let r = 0; r < 9; r++)for (let c = 0; c < 9; c++)givenMask[r][c] = board[r][c] !== 0;
+        }
+
+        function renderGrid() {
+            const grid = document.getElementById('grid');
+            grid.innerHTML = '';
+            for (let r = 0; r < 9; r++)for (let c = 0; c < 9; c++) {
+                const cell = document.createElement('div');
+                cell.className = 'cell';
+                if (givenMask[r][c]) cell.classList.add('given');
+                else cell.classList.add('editable');
+                if (c === 2 || c === 5) cell.classList.add('box-right');
+                if (r === 2 || r === 5) cell.classList.add('box-bottom');
+                cell.textContent = board[r][c] || '';
+                cell.dataset.r = r; cell.dataset.c = c;
+                cell.onclick = () => {
+                    if (givenMask[r][c]) return;
+                    document.querySelectorAll('.cell.selected').forEach(el => el.classList.remove('selected'));
+                    cell.classList.add('selected');
+                    selectedCell = { r, c, el: cell };
+                };
+                grid.appendChild(cell);
+            }
+        }
+
+        function enterNum(n) {
+            if (!selectedCell) return;
+            const { r, c, el } = selectedCell;
+            if (givenMask[r][c]) return;
+            board[r][c] = n;
+            el.textContent = n || '';
+            el.classList.remove('error');
+            // Auto-check
+            if (n && solution[r][c] !== n) el.classList.add('error');
+            else el.classList.remove('error');
+        }
+
+        function checkSolution() {
+            let allFilled = true; let allCorrect = true;
+            for (let r = 0; r < 9; r++)for (let c = 0; c < 9; c++) {
+                if (board[r][c] === 0) { allFilled = false; break; }
+                if (board[r][c] !== solution[r][c]) allCorrect = false;
+            }
+            if (!allFilled) { document.getElementById('status').textContent = 'Not complete yet!'; return; }
+            if (allCorrect) endGame(true);
+            else { document.getElementById('status').textContent = 'Some numbers are wrong — keep trying!'; renderGrid(); }
+        }
+
+        function endGame(win) {
+            clearInterval(timerInt);
+            const ol = document.getElementById('overlay'); ol.style.display = 'flex';
+            document.getElementById('over-ico').textContent = win ? '🏆' : '❌';
+            document.getElementById('over-title').textContent = win ? `SOLVED! ₹1,500` : 'Try Again!';
+            const m = Math.floor(seconds / 60), s = seconds % 60;
+            document.getElementById('over-msg').textContent = win ? `Completed in ${m}:${s < 10 ? '0' + s : s}!` : 'The puzzle has errors!';
+            document.getElementById('over-btns').innerHTML = win
+                ? `<a href="${REWARD_URL}" target="_blank" class="btn btn-g">💰 REDEEM ₹1,500</a><br><button class="btn btn-d" onclick="location.reload()">New Puzzle</button>`
+                : `<button class="btn btn-r" onclick="location.reload()">🔄 TRY AGAIN</button><button class="btn btn-d" onclick="location.href='index.html'">← Home</button>`;
+        }
+
+        function newGame() {
+            clearInterval(timerInt); seconds = 0; selectedCell = null;
+            genPuzzle(); renderGrid();
+            document.getElementById('status').textContent = "Select a cell, then tap a number";
+            timerInt = setInterval(() => { seconds++; const m = Math.floor(seconds / 60), s = seconds % 60; document.getElementById('tdisp').textContent = `${m}:${s < 10 ? '0' + s : s}`; }, 1000);
+        }
+
+        newGame();
+    </script>
+</body>
+
+</html>

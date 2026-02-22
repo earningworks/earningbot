@@ -1,0 +1,400 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Carrom | Win ₹1200</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box
+        }
+
+        body {
+            background: #050505;
+            font-family: Arial, sans-serif;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            color: #fff;
+            padding-top: 60px;
+            gap: 10px
+        }
+
+        #back {
+            position: fixed;
+            top: 15px;
+            left: 15px;
+            background: rgba(0, 0, 0, .7);
+            color: #fff;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 10px;
+            cursor: pointer
+        }
+
+        h1 {
+            font-size: 1.4rem;
+            font-weight: 800;
+            background: linear-gradient(135deg, #fbbf24, #ff8c00);
+            background-clip: text; -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent
+        }
+
+        #reward {
+            color: #4ade80;
+            font-weight: 800;
+            font-size: .8rem
+        }
+
+        #hud {
+            display: flex;
+            gap: 20px;
+            font-size: .85rem
+        }
+
+        .hbox {
+            background: rgba(255, 255, 255, .05);
+            border: 1px solid rgba(255, 255, 255, .1);
+            padding: 6px 14px;
+            border-radius: 10px;
+            font-weight: 700;
+            text-align: center
+        }
+
+        canvas {
+            border-radius: 12px;
+            cursor: crosshair;
+            max-width: 95vw;
+            touch-action: none;
+            border: 3px solid #3d2a00
+        }
+
+        #status {
+            color: #fbbf24;
+            font-size: .85rem;
+            text-align: center;
+            max-width: 380px
+        }
+
+        #aim-bar {
+            width: min(380px, 95vw);
+            height: 10px;
+            background: #1a1a2e;
+            border-radius: 5px;
+            overflow: hidden
+        }
+
+        #aim-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #4ade80, #fbbf24);
+            width: 0%;
+            transition: width .05s
+        }
+
+        #shoot-btn {
+            padding: 12px 30px;
+            background: #fbbf24;
+            color: #000;
+            border: none;
+            border-radius: 12px;
+            font-weight: 800;
+            font-size: 1rem;
+            cursor: pointer;
+            margin-top: 5px
+        }
+
+        .btn {
+            padding: 10px 24px;
+            border-radius: 10px;
+            border: none;
+            font-size: .85rem;
+            font-weight: 800;
+            cursor: pointer;
+            text-decoration: none;
+            display: inline-block;
+            margin: 4px
+        }
+
+        .btn-g {
+            background: #4ade80;
+            color: #000
+        }
+
+        .btn-r {
+            background: #ff4500;
+            color: #fff
+        }
+
+        .btn-d {
+            background: #222;
+            color: #fff
+        }
+
+        #overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, .97);
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 300;
+            color: #fff;
+            gap: 16px;
+            text-align: center;
+            padding: 20px
+        }
+
+        #power-hint {
+            font-size: .75rem;
+            color: rgba(255, 255, 255, .5)
+        }
+    </style>
+</head>
+
+<body>
+    <button id="back" onclick="location.href='index.html'">← Back</button>
+    <h1>🎯 Carrom</h1>
+    <div id="reward">Pocket all your coins to WIN ₹1,200!</div>
+    <div id="hud">
+        <div class="hbox">Your Score<br><span id="p1s">0</span></div>
+        <div class="hbox">Coins Left<br><span id="coins_left">9</span></div>
+        <div class="hbox">AI Score<br><span id="p2s">0</span></div>
+    </div>
+    <canvas id="board" width="380" height="380"></canvas>
+    <div id="status">Click on board to aim, then hold Shoot to power up!</div>
+    <div id="aim-bar">
+        <div id="aim-fill"></div>
+    </div>
+    <div id="power-hint">Hold SPACE or button to charge power</div>
+    <button id="shoot-btn" id="shootBtn">SHOOT 🎯</button>
+
+    <div id="overlay">
+        <div style="font-size:3rem" id="over-ico">🏆</div>
+        <h2 id="over-title" style="font-size:2rem"></h2>
+        <p id="over-msg"></p>
+        <div id="over-btns"></div>
+    </div>
+
+    <script>
+        const REWARD_URL = "https://emotionallytonightintelligent.com/yefth1e9e?key=672ebfd27cb3a77872d539957b23a796";
+        const canvas = document.getElementById('board'); const ctx = canvas.getContext('2d');
+        const SIZE = 380, R = SIZE / 2, POCKET_R = 18, COIN_R = 10, STRIKER_R = 14;
+        let gameOver = false, animId, power = 0, charging = false, aimAngle = 0;
+        let playerScore = 0, aiScore = 0, animating = false, playerTurn = true;
+
+        // Pockets at corners
+        const pockets = [{ x: POCKET_R, y: POCKET_R }, { x: SIZE - POCKET_R, y: POCKET_R }, { x: POCKET_R, y: SIZE - POCKET_R }, { x: SIZE - POCKET_R, y: SIZE - POCKET_R }];
+
+        // Coins: {x,y,c:'w'|'b'|'r'(queen),vx,vy,pocketed}
+        let coins = [
+            // White (player)
+            { x: R - 22, y: R, c: 'w', vx: 0, vy: 0, p: false }, { x: R + 22, y: R, c: 'w', vx: 0, vy: 0, p: false },
+            { x: R, y: R - 22, c: 'w', vx: 0, vy: 0, p: false }, { x: R, y: R + 22, c: 'w', vx: 0, vy: 0, p: false },
+            { x: R - 15, y: R - 15, c: 'w', vx: 0, vy: 0, p: false },
+            // Black (AI)
+            { x: R + 15, y: R - 15, c: 'b', vx: 0, vy: 0, p: false }, { x: R - 15, y: R + 15, c: 'b', vx: 0, vy: 0, p: false },
+            { x: R + 15, y: R + 15, c: 'b', vx: 0, vy: 0, p: false }, { x: R + 30, y: R + 30, c: 'b', vx: 0, vy: 0, p: false },
+            // Queen
+            { x: R, y: R, c: 'r', vx: 0, vy: 0, p: false }
+        ];
+
+        // Striker
+        let striker = { x: R, y: 320, vx: 0, vy: 0, moving: false };
+
+        // Aim point (where user clicked on board)
+        let aimX = R, aimY = R;
+
+        function draw() {
+            // Board background: natural wood color
+            ctx.fillStyle = '#8B6914'; ctx.fillRect(0, 0, SIZE, SIZE);
+            // Inner board
+            ctx.fillStyle = '#D4A853'; ctx.fillRect(20, 20, SIZE - 40, SIZE - 40);
+            // Lines
+            ctx.strokeStyle = 'rgba(0,0,0,.3)'; ctx.lineWidth = 1.5;
+            ctx.strokeRect(40, 40, SIZE - 80, SIZE - 80);
+            // Center circle
+            ctx.strokeStyle = '#8B6914'; ctx.lineWidth = 2;
+            ctx.beginPath(); ctx.arc(R, R, 30, 0, Math.PI * 2); ctx.stroke();
+            ctx.beginPath(); ctx.arc(R, R, 5, 0, Math.PI * 2); ctx.fill();
+
+            // Pockets
+            pockets.forEach(p => { ctx.fillStyle = '#2d1800'; ctx.beginPath(); ctx.arc(p.x, p.y, POCKET_R, 0, Math.PI * 2); ctx.fill(); });
+
+            // Aim line
+            if (!animating && playerTurn) {
+                const len = 80;
+                const dx = aimX - striker.x, dy = aimY - striker.y;
+                const dist = Math.sqrt(dx * dx + dy * dy) || 1;
+                ctx.strokeStyle = 'rgba(255,255,100,0.4)'; ctx.lineWidth = 1.5; ctx.setLineDash([5, 5]);
+                ctx.beginPath(); ctx.moveTo(striker.x, striker.y);
+                ctx.lineTo(striker.x + (dx / dist) * len, striker.y + (dy / dist) * len);
+                ctx.stroke(); ctx.setLineDash([]);
+            }
+
+            // Coins
+            coins.forEach(c => {
+                if (c.p) return;
+                ctx.fillStyle = c.c === 'w' ? '#fffff0' : c.c === 'b' ? '#1a1a1a' : '#ff4444';
+                ctx.strokeStyle = c.c === 'w' ? '#ccc' : c.c === 'b' ? '#555' : '#ff8888';
+                ctx.lineWidth = 2;
+                ctx.beginPath(); ctx.arc(c.x, c.y, COIN_R, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+                if (c.c === 'r') { ctx.fillStyle = '#fff'; ctx.font = '8px Arial'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText('Q', c.x, c.y); }
+            });
+
+            // Striker baseline
+            ctx.strokeStyle = 'rgba(255,255,255,.2)'; ctx.lineWidth = 1; ctx.setLineDash([3, 3]);
+            ctx.beginPath(); ctx.moveTo(40, 320); ctx.lineTo(SIZE - 40, 320); ctx.stroke(); ctx.setLineDash([]);
+
+            // Striker
+            ctx.fillStyle = '#4ade80'; ctx.strokeStyle = '#fff'; ctx.lineWidth = 2;
+            ctx.beginPath(); ctx.arc(striker.x, striker.y, STRIKER_R, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+        }
+
+        function physicsStep() {
+            const FRICTION = 0.985; const WALL = 20 + STRIKER_R;
+            // Move striker
+            if (striker.moving) {
+                striker.x += striker.vx; striker.y += striker.vy;
+                striker.vx *= FRICTION; striker.vy *= FRICTION;
+                if (striker.x < WALL) { striker.x = WALL; striker.vx *= -0.7; }
+                if (striker.x > SIZE - WALL) { striker.x = SIZE - WALL; striker.vx *= -0.7; }
+                if (striker.y < WALL) { striker.y = WALL; striker.vy *= -0.7; }
+                if (striker.y > SIZE - WALL) { striker.y = SIZE - WALL; striker.vy *= -0.7; }
+                if (Math.abs(striker.vx) < 0.05 && Math.abs(striker.vy) < 0.05) { striker.vx = 0; striker.vy = 0; striker.moving = false; }
+                // Striker pocket check
+                pockets.forEach(p => { const dx = striker.x - p.x, dy = striker.y - p.y; if (Math.sqrt(dx * dx + dy * dy) < POCKET_R) { striker.x = R; striker.y = 320; striker.vx = 0; striker.vy = 0; striker.moving = false; } });
+            }
+
+            // Move coins
+            coins.forEach((c, i) => {
+                if (c.p) return;
+                c.x += c.vx; c.y += c.vy;
+                c.vx *= FRICTION; c.vy *= FRICTION;
+                if (Math.abs(c.vx) < 0.05) c.vx = 0;
+                if (Math.abs(c.vy) < 0.05) c.vy = 0;
+                const CWALL = 20 + COIN_R;
+                if (c.x < CWALL) { c.x = CWALL; c.vx *= -0.6; }
+                if (c.x > SIZE - CWALL) { c.x = SIZE - CWALL; c.vx *= -0.6; }
+                if (c.y < CWALL) { c.y = CWALL; c.vy *= -0.6; }
+                if (c.y > SIZE - CWALL) { c.y = SIZE - CWALL; c.vy *= -0.6; }
+                // Pocket check
+                pockets.forEach(p => { const dx = c.x - p.x, dy = c.y - p.y; if (Math.sqrt(dx * dx + dy * dy) < POCKET_R) { c.p = true; c.vx = 0; c.vy = 0; if (c.c === 'w') playerScore += 2; else if (c.c === 'b') aiScore += 2; else if (c.c === 'r') playerScore += 5; document.getElementById('p1s').textContent = playerScore; document.getElementById('p2s').textContent = aiScore; document.getElementById('coins_left').textContent = coins.filter(x => !x.p).length; } });
+            });
+
+            // Coin-coin collisions
+            for (let i = 0; i < coins.length; i++)for (let j = i + 1; j < coins.length; j++) {
+                if (coins[i].p || coins[j].p) continue;
+                const dx = coins[j].x - coins[i].x, dy = coins[j].y - coins[i].y;
+                const dist = Math.sqrt(dx * dx + dy * dy);
+                if (dist < COIN_R * 2 && dist > 0) {
+                    const nx = dx / dist, ny = dy / dist;
+                    const overlap = (COIN_R * 2 - dist) / 2;
+                    coins[i].x -= nx * overlap; coins[i].y -= ny * overlap;
+                    coins[j].x += nx * overlap; coins[j].y += ny * overlap;
+                    const rel = ((coins[i].vx - coins[j].vx) * nx + (coins[i].vy - coins[j].vy) * ny);
+                    if (rel > 0) { coins[i].vx -= rel * nx * 0.8; coins[i].vy -= rel * ny * 0.8; coins[j].vx += rel * nx * 0.8; coins[j].vy += rel * ny * 0.8; }
+                }
+            }
+
+            // Striker-coin collisions
+            coins.forEach(c => {
+                if (c.p) return;
+                const dx = c.x - striker.x, dy = c.y - striker.y;
+                const dist = Math.sqrt(dx * dx + dy * dy);
+                if (dist < COIN_R + STRIKER_R && dist > 0) {
+                    const nx = dx / dist, ny = dy / dist;
+                    const ovl = (COIN_R + STRIKER_R - dist) / 2;
+                    striker.x -= nx * ovl; striker.y -= ny * ovl;
+                    c.x += nx * ovl; c.y += ny * ovl;
+                    const rel = ((striker.vx - c.vx) * nx + (striker.vy - c.vy) * ny);
+                    if (rel > 0) { const mass = 1.5; striker.vx -= (rel * mass) * nx * 0.7; striker.vy -= (rel * mass) * ny * 0.7; c.vx += rel * nx * 0.7; c.vy += rel * ny * 0.7; }
+                }
+            });
+        }
+
+        function everythingStop() {
+            return !striker.moving && coins.every(c => c.vx === 0 && c.vy === 0);
+        }
+
+        function gameLoop() {
+            animId = requestAnimationFrame(gameLoop);
+            physicsStep(); draw();
+            if (animating && everythingStop()) {
+                animating = false;
+                const active = coins.filter(c => !c.p);
+                if (active.length === 0 || active.every(c => c.c !== 'w')) { if (playerScore > aiScore) endGame(true); else endGame(false); return; }
+                if (playerTurn) { document.getElementById('status').textContent = "Your turn! Aim & shoot."; striker.x = R; striker.y = 320; }
+                else { setTimeout(aiShoot, 600); }
+            }
+        }
+
+        function shoot() {
+            if (animating || gameOver || !playerTurn) return;
+            const speed = Math.max(2, power * 0.15);
+            const dx = aimX - striker.x, dy = aimY - striker.y;
+            const dist = Math.sqrt(dx * dx + dy * dy) || 1;
+            striker.vx = (dx / dist) * speed; striker.vy = (dy / dist) * speed;
+            striker.moving = true; animating = true; playerTurn = false;
+            document.getElementById('status').textContent = "Shot fired!";
+            power = 0; document.getElementById('aim-fill').style.width = '0%';
+        }
+
+        function aiShoot() {
+            if (gameOver) return;
+            // Pick nearest black coin
+            let target = coins.find(c => !c.p && c.c === 'b');
+            if (!target) target = coins.find(c => !c.p);
+            if (!target) { endGame(true); return; }
+            const aiStriker = { x: R, y: 60 };
+            striker.x = R; striker.y = 60;
+            const dx = target.x - aiStriker.x, dy = target.y - aiStriker.y;
+            const dist = Math.sqrt(dx * dx + dy * dy) || 1;
+            const spd = 5 + Math.random() * 3;
+            striker.vx = (dx / dist) * spd; striker.vy = (dy / dist) * spd;
+            striker.moving = true; animating = true; playerTurn = true;
+        }
+
+        canvas.addEventListener('click', e => {
+            if (gameOver || animating || !playerTurn) return;
+            const rect = canvas.getBoundingClientRect();
+            aimX = (e.clientX - rect.left) * (canvas.width / rect.width);
+            aimY = (e.clientY - rect.top) * (canvas.height / rect.height);
+        });
+        canvas.addEventListener('touchstart', e => {
+            if (gameOver || animating || !playerTurn) return;
+            const rect = canvas.getBoundingClientRect();
+            aimX = (e.touches[0].clientX - rect.left) * (canvas.width / rect.width);
+            aimY = (e.touches[0].clientY - rect.top) * (canvas.height / rect.height); e.preventDefault();
+        });
+
+        // Power charge
+        const shootBtn = document.getElementById('shoot-btn');
+        let chargeInt;
+        shootBtn.addEventListener('mousedown', () => { if (!animating && !gameOver && playerTurn) { charging = true; chargeInt = setInterval(() => { power = Math.min(100, power + 3); document.getElementById('aim-fill').style.width = power + '%'; }, 30); } });
+        shootBtn.addEventListener('mouseup', () => { if (charging) { clearInterval(chargeInt); charging = false; shoot(); } });
+        shootBtn.addEventListener('touchstart', e => { e.preventDefault(); if (!animating && !gameOver && playerTurn) { charging = true; chargeInt = setInterval(() => { power = Math.min(100, power + 3); document.getElementById('aim-fill').style.width = power + '%'; }, 30); } });
+        shootBtn.addEventListener('touchend', e => { e.preventDefault(); if (charging) { clearInterval(chargeInt); charging = false; shoot(); } });
+        document.addEventListener('keydown', e => { if (e.code === 'Space' && !charging && !animating && !gameOver && playerTurn) { e.preventDefault(); charging = true; chargeInt = setInterval(() => { power = Math.min(100, power + 3); document.getElementById('aim-fill').style.width = power + '%'; }, 30); } });
+        document.addEventListener('keyup', e => { if (e.code === 'Space' && charging) { clearInterval(chargeInt); charging = false; shoot(); } });
+
+        function endGame(win) {
+            if (gameOver) return; gameOver = true; cancelAnimationFrame(animId);
+            const ol = document.getElementById('overlay'); ol.style.display = 'flex';
+            document.getElementById('over-ico').textContent = win ? '🏆' : '😔';
+            document.getElementById('over-title').textContent = win ? 'YOU WIN! ₹1,200' : 'YOU LOSE!';
+            document.getElementById('over-msg').textContent = win ? `Score: ${playerScore} vs AI: ${aiScore}` : `AI: ${aiScore} > You: ${playerScore}`;
+            document.getElementById('over-btns').innerHTML = win
+                ? `<a href="${REWARD_URL}" target="_blank" class="btn btn-g">💰 REDEEM ₹1,200</a><br><button class="btn btn-d" onclick="location.reload()">Play Again</button>`
+                : `<button class="btn btn-r" onclick="location.reload()">🔄 TRY AGAIN</button><button class="btn btn-d" onclick="location.href='index.html'">← Home</button>`;
+        }
+
+        gameLoop();
+    </script>
+</body>
+
+</html>

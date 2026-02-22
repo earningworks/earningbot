@@ -1,0 +1,322 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sky Rush 3D | Win ₹5000</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box
+        }
+
+        body {
+            background: #050505;
+            font-family: Arial, sans-serif;
+            overflow: hidden;
+            user-select: none
+        }
+
+        canvas {
+            display: block
+        }
+
+        #hud {
+            position: fixed;
+            top: 15px;
+            left: 0;
+            right: 0;
+            display: flex;
+            justify-content: center;
+            gap: 20px;
+            z-index: 100;
+            pointer-events: none
+        }
+
+        .hbox {
+            background: rgba(0, 0, 0, .8);
+            color: #fff;
+            padding: 8px 16px;
+            border-radius: 10px;
+            font-weight: 800;
+            font-size: 0.9rem;
+            border: 1px solid rgba(255, 255, 255, .1)
+        }
+
+        #overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, .97);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 300;
+            color: #fff;
+            gap: 16px;
+            text-align: center;
+            padding: 20px
+        }
+
+        #overlay h1 {
+            font-size: 2.2rem;
+            background: linear-gradient(135deg, #4ade80, #fbbf24);
+            background-clip: text; -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent
+        }
+
+        .btn {
+            padding: 14px 32px;
+            border-radius: 12px;
+            border: none;
+            font-size: 1rem;
+            font-weight: 800;
+            cursor: pointer;
+            text-decoration: none;
+            display: inline-block;
+            margin: 4px
+        }
+
+        .btn-g {
+            background: #4ade80;
+            color: #000
+        }
+
+        .btn-y {
+            background: #fbbf24;
+            color: #000
+        }
+
+        .btn-r {
+            background: #ff4500;
+            color: #fff
+        }
+
+        .btn-d {
+            background: #222;
+            color: #fff
+        }
+
+        #ctrls {
+            position: fixed;
+            bottom: 20px;
+            left: 0;
+            right: 0;
+            display: flex;
+            justify-content: center;
+            gap: 40px;
+            z-index: 200
+        }
+
+        .cbtn {
+            width: 70px;
+            height: 70px;
+            background: rgba(255, 255, 255, .1);
+            backdrop-filter: blur(5px);
+            border: 2px solid rgba(255, 255, 255, .2);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.8rem;
+            cursor: pointer;
+            -webkit-tap-highlight-color: transparent
+        }
+
+        #back {
+            position: fixed;
+            top: 15px;
+            left: 15px;
+            z-index: 400;
+            background: rgba(0, 0, 0, .7);
+            color: #fff;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 10px;
+            cursor: pointer;
+            font-size: 0.9rem
+        }
+    </style>
+</head>
+
+<body>
+    <button id="back" onclick="location.href='index.html'">← Back</button>
+    <div id="hud">
+        <div class="hbox">🏆 Score: <span id="score">0</span></div>
+        <div class="hbox">⏱️ <span id="tdisp">90</span>s</div>
+        <div class="hbox">🎯 Goal: 500pts</div>
+    </div>
+    <div id="ctrls">
+        <div class="cbtn" id="lbtn">◀</div>
+        <div class="cbtn" id="rbtn">▶</div>
+    </div>
+    <div id="overlay">
+        <div style="font-size:3rem">🚀</div>
+        <h1>Sky Rush 3D</h1>
+        <p style="color:#fbbf24;font-size:1.2rem;font-weight:800">WIN ₹5,000!</p>
+        <p style="color:rgba(255,255,255,.6)">Reach 500 points in 90s — dodge obstacles!</p>
+        <p style="color:rgba(255,255,255,.5);font-size:.85rem">← → keys or tap buttons to move lanes</p>
+        <button class="btn btn-g" onclick="startGame()">▶ PLAY NOW</button>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/build/three.min.js"></script>
+    <script>
+        const W = window.innerWidth, H = window.innerHeight;
+        const REWARD_URL = "https://emotionallytonightintelligent.com/yefth1e9e?key=672ebfd27cb3a77872d539957b23a796";
+        const LANES = [-2.2, 0, 2.2];
+        let currentLane = 1, targetX = 0, score = 0, speed = 0.25, gameActive = false, time = 90, spawnTimer = 0, animId, scoreTimer;
+
+        const renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setSize(W, H); renderer.shadowMap.enabled = true;
+        renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+        document.body.insertBefore(renderer.domElement, document.body.firstChild);
+
+        const scene = new THREE.Scene();
+        scene.fog = new THREE.FogExp2(0x050505, 0.015);
+        scene.background = new THREE.Color(0x050505);
+
+        const camera = new THREE.PerspectiveCamera(70, W / H, 0.1, 200);
+        camera.position.set(0, 3.5, 6); camera.lookAt(0, 1, -20);
+
+        // Lights
+        scene.add(new THREE.AmbientLight(0xffffff, 0.5));
+        const dLight = new THREE.DirectionalLight(0x4ade80, 1.5);
+        dLight.position.set(5, 20, 5); scene.add(dLight);
+        const pLight = new THREE.PointLight(0x4ade80, 2, 30);
+        pLight.position.set(0, 5, -5); scene.add(pLight);
+
+        // Stars
+        const starGeo = new THREE.BufferGeometry();
+        const starVerts = [];
+        for (let i = 0; i < 2000; i++) { starVerts.push((Math.random() - 0.5) * 200, (Math.random() - 0.5) * 200, -Math.random() * 200); }
+        starGeo.setAttribute('position', new THREE.Float32BufferAttribute(starVerts, 3));
+        scene.add(new THREE.Points(starGeo, new THREE.PointsMaterial({ color: 0xffffff, size: 0.2 })));
+
+        // Player
+        const pMat = new THREE.MeshPhongMaterial({ color: 0x4ade80, emissive: 0x1a6630 });
+        const player = new THREE.Mesh(new THREE.BoxGeometry(0.9, 0.9, 1.2), pMat);
+        player.position.set(0, 0.5, 0); player.castShadow = true; scene.add(player);
+
+        // Road pool
+        const road = [];
+        const roadMat = new THREE.MeshPhongMaterial({ color: 0x1a1a2e });
+        const lineMat = new THREE.MeshPhongMaterial({ color: 0xfbbf24, emissive: 0x443300 });
+        for (let i = 0; i < 12; i++) {
+            const seg = new THREE.Mesh(new THREE.BoxGeometry(7.5, 0.2, 15), roadMat);
+            seg.position.set(0, -0.1, -i * 15);
+            seg.receiveShadow = true; scene.add(seg); road.push(seg);
+            for (let j = -1; j <= 1; j += 2) {
+                const line = new THREE.Mesh(new THREE.BoxGeometry(0.15, 0.05, 15), lineMat);
+                line.position.set(j * 1.1, 0.05, -i * 15); scene.add(line);
+            }
+        }
+        // Walls
+        const wallMat = new THREE.MeshPhongMaterial({ color: 0x0a0a1a });
+        const lWall = new THREE.Mesh(new THREE.BoxGeometry(0.5, 5, 300), wallMat);
+        lWall.position.set(-4.5, 2, -100); scene.add(lWall);
+        const rWall = new THREE.Mesh(new THREE.BoxGeometry(0.5, 5, 300), wallMat);
+        rWall.position.set(4.5, 2, -100); scene.add(rWall);
+
+        const obstMats = [
+            new THREE.MeshPhongMaterial({ color: 0xff4500, emissive: 0x660000 }),
+            new THREE.MeshPhongMaterial({ color: 0x9333ea, emissive: 0x330066 }),
+            new THREE.MeshPhongMaterial({ color: 0xef4444, emissive: 0x660000 })
+        ];
+        const obsts = [];
+
+        function spawnObs() {
+            const lane = Math.floor(Math.random() * 3);
+            const mat = obstMats[Math.floor(Math.random() * obstMats.length)];
+            const h = 0.8 + Math.random() * 0.8;
+            const obs = new THREE.Mesh(new THREE.BoxGeometry(0.9, h, 0.9), mat);
+            obs.position.set(LANES[lane], h / 2, -80);
+            obs.castShadow = true; scene.add(obs);
+            obsts.push({ mesh: obs, lane });
+        }
+
+        function startGame() {
+            document.getElementById('overlay').style.display = 'none';
+            gameActive = true; score = 0; time = 90; speed = 0.25;
+            spawnTimer = 0; currentLane = 1; targetX = LANES[1];
+            document.getElementById('score').textContent = 0;
+            document.getElementById('tdisp').textContent = 90;
+            obsts.forEach(o => scene.remove(o.mesh)); obsts.length = 0;
+            scoreTimer = setInterval(() => { if (!gameActive) return; time--; document.getElementById('tdisp').textContent = time; if (time <= 0) endGame(false); }, 1000);
+            animate();
+        }
+
+        function endGame(win) {
+            gameActive = false; cancelAnimationFrame(animId); clearInterval(scoreTimer);
+            const ol = document.getElementById('overlay'); ol.style.display = 'flex';
+            if (win) {
+                ol.innerHTML = `<div style="font-size:3rem">🏆</div><h1 style="font-size:2rem;color:#4ade80">YOU WON! ₹5,000</h1><p style="color:rgba(255,255,255,.6)">Incredible! Score: ${score}</p><a href="${REWARD_URL}" target="_blank" class="btn btn-g">💰 REDEEM ₹5,000</a><button class="btn btn-d" onclick="location.reload()">Play Again</button><button class="btn btn-d" onclick="location.href='index.html'">← Home</button>`;
+            } else {
+                ol.innerHTML = `<div style="font-size:3rem">💥</div><h1 style="font-size:2rem;color:#ff4500">GAME OVER!</h1><p style="color:rgba(255,255,255,.6)">Score: ${score} (Goal: 500)</p><button class="btn btn-r" onclick="location.reload()">🔄 TRY AGAIN</button><button class="btn btn-d" onclick="location.href='index.html'">← Home</button>`;
+            }
+        }
+
+        function animate() {
+            animId = requestAnimationFrame(animate);
+            if (!gameActive) return;
+            // Smooth lane change
+            player.position.x += (targetX - player.position.x) * 0.12;
+            // Fun wobble
+            player.rotation.z += (0 - player.rotation.z) * 0.1;
+
+            // Move road
+            road.forEach(seg => {
+                seg.position.z += speed;
+                if (seg.position.z > 15) seg.position.z -= 180;
+                // Update lane lines too (parented would be better but this works)
+            });
+
+            // Spawn and move obstacles
+            spawnTimer += speed;
+            if (spawnTimer > 3 + Math.random() * 2) { spawnTimer = 0; spawnObs(); }
+
+            for (let i = obsts.length - 1; i >= 0; i--) {
+                const o = obsts[i];
+                o.mesh.position.z += speed;
+                o.mesh.rotation.y += 0.02;
+                // Check collision
+                if (o.mesh.position.z > -0.5 && o.mesh.position.z < 2) {
+                    if (Math.abs(o.mesh.position.x - player.position.x) < 0.8) { endGame(false); return; }
+                }
+                // Score + remove
+                if (o.mesh.position.z > 6) {
+                    scene.remove(o.mesh); obsts.splice(i, 1);
+                    score += 10; document.getElementById('score').textContent = score;
+                    if (score >= 500) endGame(true);
+                }
+            }
+
+            speed = Math.min(0.9, 0.25 + score * 0.0006);
+            renderer.render(scene, camera);
+        }
+
+        // Controls
+        document.addEventListener('keydown', e => {
+            if (!gameActive) return;
+            if (e.key === 'ArrowLeft' && currentLane > 0) { currentLane--; targetX = LANES[currentLane]; player.rotation.z = 0.2; }
+            if (e.key === 'ArrowRight' && currentLane < 2) { currentLane++; targetX = LANES[currentLane]; player.rotation.z = -0.2; }
+        });
+        document.getElementById('lbtn').addEventListener('touchstart', e => { e.preventDefault(); if (!gameActive || currentLane <= 0) return; currentLane--; targetX = LANES[currentLane]; });
+        document.getElementById('rbtn').addEventListener('touchstart', e => { e.preventDefault(); if (!gameActive || currentLane >= 2) return; currentLane++; targetX = LANES[currentLane]; });
+        document.getElementById('lbtn').addEventListener('click', () => { if (!gameActive || currentLane <= 0) return; currentLane--; targetX = LANES[currentLane]; });
+        document.getElementById('rbtn').addEventListener('click', () => { if (!gameActive || currentLane >= 2) return; currentLane++; targetX = LANES[currentLane]; });
+
+        // Resize
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+
+        // Render start screen once
+        renderer.render(scene, camera);
+    </script>
+</body>
+
+</html>

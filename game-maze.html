@@ -1,0 +1,316 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Shadow Maze 3D | Win ₹4000</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box
+        }
+
+        body {
+            background: #050505;
+            font-family: Arial, sans-serif;
+            overflow: hidden;
+            user-select: none
+        }
+
+        canvas {
+            display: block
+        }
+
+        #hud {
+            position: fixed;
+            top: 15px;
+            left: 0;
+            right: 0;
+            display: flex;
+            justify-content: center;
+            gap: 20px;
+            z-index: 100;
+            pointer-events: none
+        }
+
+        .hbox {
+            background: rgba(0, 0, 0, .8);
+            color: #fff;
+            padding: 8px 16px;
+            border-radius: 10px;
+            font-weight: 800;
+            font-size: 0.9rem;
+            border: 1px solid rgba(255, 255, 255, .1)
+        }
+
+        #overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, .97);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 300;
+            color: #fff;
+            gap: 16px;
+            text-align: center;
+            padding: 20px
+        }
+
+        #overlay h1 {
+            font-size: 2.2rem;
+            background: linear-gradient(135deg, #9333ea, #00d2ff);
+            background-clip: text; -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent
+        }
+
+        .btn {
+            padding: 14px 32px;
+            border-radius: 12px;
+            border: none;
+            font-size: 1rem;
+            font-weight: 800;
+            cursor: pointer;
+            text-decoration: none;
+            display: inline-block;
+            margin: 4px
+        }
+
+        .btn-g {
+            background: #4ade80;
+            color: #000
+        }
+
+        .btn-r {
+            background: #ff4500;
+            color: #fff
+        }
+
+        .btn-d {
+            background: #222;
+            color: #fff
+        }
+
+        #ctrls {
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 10px;
+            z-index: 200
+        }
+
+        .cbtn {
+            width: 60px;
+            height: 60px;
+            background: rgba(255, 255, 255, .1);
+            border: 2px solid rgba(255, 255, 255, .2);
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.4rem;
+            cursor: pointer;
+            -webkit-tap-highlight-color: transparent
+        }
+
+        #back {
+            position: fixed;
+            top: 15px;
+            left: 15px;
+            z-index: 400;
+            background: rgba(0, 0, 0, .7);
+            color: #fff;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 10px;
+            cursor: pointer
+        }
+    </style>
+</head>
+
+<body>
+    <button id="back" onclick="location.href='index.html'">← Back</button>
+    <div id="hud">
+        <div class="hbox">⏱️ <span id="tdisp">120</span>s</div>
+        <div class="hbox">🗺️ Exit the Maze!</div>
+    </div>
+    <div id="ctrls">
+        <div></div>
+        <div class="cbtn" id="fu">▲</div>
+        <div></div>
+        <div class="cbtn" id="fl">◀</div>
+        <div class="cbtn" id="fd">▼</div>
+        <div class="cbtn" id="fr">▶</div>
+    </div>
+    <div id="overlay">
+        <div style="font-size:3rem">🌀</div>
+        <h1>Shadow Maze 3D</h1>
+        <p style="color:#fbbf24;font-size:1.2rem;font-weight:800">WIN ₹4,000!</p>
+        <p style="color:rgba(255,255,255,.6)">Find the exit in 120 seconds!</p>
+        <p style="color:rgba(255,255,255,.5);font-size:.85rem">WASD / Arrow keys or tap buttons</p>
+        <button class="btn btn-g" onclick="startGame()">▶ ENTER MAZE</button>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/build/three.min.js"></script>
+    <script>
+        const W = window.innerWidth, H = window.innerHeight;
+        const REWARD_URL = "https://emotionallytonightintelligent.com/yefth1e9e?key=672ebfd27cb3a77872d539957b23a796";
+        let gameActive = false, time = 120, animId, scoreTimer;
+        const keys = {};
+
+        const renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setSize(W, H); renderer.shadowMap.enabled = true;
+        document.body.insertBefore(renderer.domElement, document.body.firstChild);
+
+        const scene = new THREE.Scene();
+        scene.background = new THREE.Color(0x020108);
+        scene.fog = new THREE.Fog(0x020108, 0, 25);
+
+        const camera = new THREE.PerspectiveCamera(75, W / H, 0.1, 100);
+
+        // Lights
+        scene.add(new THREE.AmbientLight(0x110022, 2));
+        const flash = new THREE.PointLight(0x9333ea, 3, 12); scene.add(flash);
+        const exitLight = new THREE.PointLight(0x4ade80, 5, 10); exitLight.position.set(18, 1, 18); scene.add(exitLight);
+
+        // Maze layout (0=path, 1=wall)
+        const MAZE = [
+            [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+            [1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 1],
+            [1, 0, 1, 0, 1, 0, 1, 1, 1, 1, 1, 0, 1, 0, 1, 1, 1, 1, 0, 1],
+            [1, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 1, 0, 1],
+            [1, 0, 1, 1, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 1, 1, 0, 1, 0, 1],
+            [1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 1, 0, 1, 0, 1],
+            [1, 0, 1, 1, 1, 0, 1, 0, 1, 0, 1, 1, 1, 0, 1, 1, 0, 0, 0, 1],
+            [1, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1, 1, 0, 1],
+            [1, 0, 1, 0, 1, 1, 1, 1, 1, 1, 1, 0, 1, 1, 1, 0, 0, 1, 0, 1],
+            [1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 1, 0, 1, 1, 0, 1],
+            [1, 1, 1, 0, 1, 0, 1, 1, 1, 0, 1, 0, 1, 0, 0, 0, 0, 0, 0, 1],
+            [1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 1, 1, 1, 0, 1],
+            [1, 0, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 1, 0, 0, 0, 0, 1, 0, 1],
+            [1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1, 0, 0, 1, 0, 1],
+            [1, 0, 1, 1, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 1, 0, 1, 0, 0, 1],
+            [1, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 1, 1],
+            [1, 0, 1, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 1, 0, 1, 0, 0, 1],
+            [1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 1, 0, 0, 0, 0, 1],
+            [1, 0, 1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 0, 1],
+            [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 1]
+        ];
+
+        const CELL = 2;
+        const wallMat = new THREE.MeshPhongMaterial({ color: 0x1a0033, emissive: 0x0d0019 });
+        const floorMat = new THREE.MeshPhongMaterial({ color: 0x0a0020 });
+
+        MAZE.forEach((row, z) => {
+            row.forEach((cell, x) => {
+                if (cell === 1) {
+                    const wall = new THREE.Mesh(new THREE.BoxGeometry(CELL, 3, CELL), wallMat);
+                    wall.position.set(x * CELL, 1.5, z * CELL);
+                    wall.castShadow = wall.receiveShadow = true;
+                    scene.add(wall);
+                    // Neon trim
+                    const trim = new THREE.Mesh(new THREE.BoxGeometry(CELL, 0.1, CELL), new THREE.MeshPhongMaterial({ color: 0x9333ea, emissive: 0x441177 }));
+                    trim.position.set(x * CELL, 3.05, z * CELL); scene.add(trim);
+                }
+                const floor = new THREE.Mesh(new THREE.BoxGeometry(CELL, 0.1, CELL), floorMat);
+                floor.position.set(x * CELL, -0.05, z * CELL); floor.receiveShadow = true; scene.add(floor);
+            });
+        });
+
+        // Exit marker
+        const exitGeo = new THREE.BoxGeometry(2, 0.1, 2);
+        const exitMat = new THREE.MeshPhongMaterial({ color: 0x4ade80, emissive: 0x1a6630 });
+        const exit = new THREE.Mesh(exitGeo, exitMat);
+        exit.position.set(18 * CELL, 0.1, 18 * CELL); scene.add(exit);
+        const exitPillar = new THREE.Mesh(new THREE.BoxGeometry(0.3, 5, 0.3), new THREE.MeshPhongMaterial({ color: 0x4ade80, emissive: 0x1a6630 }));
+        exitPillar.position.set(18 * CELL, 2.5, 18 * CELL); scene.add(exitPillar);
+
+        const player = { x: 2, z: 2 };
+        camera.position.set(player.x * CELL, 1.6, player.z * CELL);
+        camera.rotation.y = 0;
+
+        let camYaw = 0;
+
+        function isWall(gx, gz) {
+            const ix = Math.round(gx / CELL); const iz = Math.round(gz / CELL);
+            if (ix < 0 || ix >= 20 || iz < 0 || iz >= 20) return true;
+            return MAZE[iz] && MAZE[iz][ix] === 1;
+        }
+
+        const spd = 0.06;
+
+        function startGame() {
+            document.getElementById('overlay').style.display = 'none';
+            gameActive = true; time = 120;
+            camera.position.set(CELL * 1.5, 1.6, CELL * 1.5); camYaw = 0;
+            scoreTimer = setInterval(() => { if (!gameActive) return; time--; document.getElementById('tdisp').textContent = time; if (time <= 0) endGame(false); }, 1000);
+            animate();
+        }
+
+        function endGame(win) {
+            gameActive = false; cancelAnimationFrame(animId); clearInterval(scoreTimer);
+            const ol = document.getElementById('overlay'); ol.style.display = 'flex';
+            if (win) {
+                ol.innerHTML = `<div style="font-size:3rem">🏆</div><h1 style="font-size:2rem;color:#4ade80">ESCAPED! ₹4,000</h1><p>You found the exit in ${120 - time}s!</p><a href="${REWARD_URL}" target="_blank" class="btn btn-g">💰 REDEEM ₹4,000</a><button class="btn btn-d" onclick="location.reload()">Play Again</button><button class="btn btn-d" onclick="location.href='index.html'">← Home</button>`;
+            } else {
+                ol.innerHTML = `<div style="font-size:3rem">😱</div><h1 style="font-size:2rem;color:#ff4500">LOST IN MAZE!</h1><p>Couldn't escape in time!</p><button class="btn btn-r" onclick="location.reload()">🔄 TRY AGAIN</button><button class="btn btn-d" onclick="location.href='index.html'">← Home</button>`;
+            }
+        }
+
+        function animate() {
+            animId = requestAnimationFrame(animate);
+            if (!gameActive) return;
+
+            const cx = camera.position.x, cz = camera.position.z;
+            let nx = cx, nz = cz;
+
+            if (keys['KeyW'] || keys['ArrowUp'] || keys['bu']) { nx += Math.sin(camYaw) * spd; nz -= Math.cos(camYaw) * spd; }
+            if (keys['KeyS'] || keys['ArrowDown'] || keys['bd']) { nx -= Math.sin(camYaw) * spd; nz += Math.cos(camYaw) * spd; }
+            if (keys['KeyA'] || keys['ArrowLeft'] || keys['bl']) { camYaw -= 0.04; }
+            if (keys['KeyD'] || keys['ArrowRight'] || keys['br']) { camYaw += 0.04; }
+
+            if (!isWall(nx, cz)) camera.position.x = nx;
+            if (!isWall(cx, nz)) camera.position.z = nz;
+            camera.rotation.y = camYaw;
+
+            flash.position.copy(camera.position);
+            flash.position.y = 2;
+            exit.rotation.y += 0.02;
+
+            // Check exit
+            const dx = camera.position.x - 18 * CELL;
+            const dz = camera.position.z - 18 * CELL;
+            if (Math.sqrt(dx * dx + dz * dz) < 2) endGame(true);
+
+            renderer.render(scene, camera);
+        }
+
+        // Keyboard
+        document.addEventListener('keydown', e => { keys[e.code] = true; });
+        document.addEventListener('keyup', e => { keys[e.code] = false; });
+        // Touch
+        document.getElementById('fu').addEventListener('touchstart', e => { e.preventDefault(); keys['bu'] = true; });
+        document.getElementById('fu').addEventListener('touchend', e => { e.preventDefault(); keys['bu'] = false; });
+        document.getElementById('fd').addEventListener('touchstart', e => { e.preventDefault(); keys['bd'] = true; });
+        document.getElementById('fd').addEventListener('touchend', e => { e.preventDefault(); keys['bd'] = false; });
+        document.getElementById('fl').addEventListener('touchstart', e => { e.preventDefault(); keys['bl'] = true; });
+        document.getElementById('fl').addEventListener('touchend', e => { e.preventDefault(); keys['bl'] = false; });
+        document.getElementById('fr').addEventListener('touchstart', e => { e.preventDefault(); keys['br'] = true; });
+        document.getElementById('fr').addEventListener('touchend', e => { e.preventDefault(); keys['br'] = false; });
+        document.getElementById('fu').addEventListener('mousedown', () => keys['bu'] = true); document.getElementById('fu').addEventListener('mouseup', () => keys['bu'] = false);
+        document.getElementById('fd').addEventListener('mousedown', () => keys['bd'] = true); document.getElementById('fd').addEventListener('mouseup', () => keys['bd'] = false);
+        document.getElementById('fl').addEventListener('mousedown', () => keys['bl'] = true); document.getElementById('fl').addEventListener('mouseup', () => keys['bl'] = false);
+        document.getElementById('fr').addEventListener('mousedown', () => keys['br'] = true); document.getElementById('fr').addEventListener('mouseup', () => keys['br'] = false);
+
+        window.addEventListener('resize', () => { camera.aspect = window.innerWidth / window.innerHeight; camera.updateProjectionMatrix(); renderer.setSize(window.innerWidth, window.innerHeight); });
+        renderer.render(scene, camera);
+    </script>
+</body>
+
+</html>
