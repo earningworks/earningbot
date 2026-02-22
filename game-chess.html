@@ -19,7 +19,6 @@
             display: flex;
             flex-direction: column;
             align-items: center;
-            justify-content: flex-start;
             padding-top: 60px;
             color: #fff
         }
@@ -37,35 +36,52 @@
             cursor: pointer
         }
 
+        #timer {
+            position: fixed;
+            top: 15px;
+            right: 15px;
+            background: rgba(0, 0, 0, .8);
+            padding: 8px 16px;
+            border-radius: 10px;
+            font-weight: 800;
+            border: 1px solid rgba(255, 255, 255, .1)
+        }
+
         h1 {
             font-size: 1.5rem;
             font-weight: 800;
-            margin-bottom: 10px;
+            margin-bottom: 5px;
             background: linear-gradient(135deg, #fff, #fbbf24);
             -webkit-background-clip: text;
+            background-clip: text;
             -webkit-text-fill-color: transparent
         }
 
-        #info {
-            font-size: 0.85rem;
-            color: rgba(255, 255, 255, .6);
-            margin-bottom: 15px;
-            text-align: center
-        }
-
         #reward-info {
-            font-size: 0.8rem;
+            font-size: .8rem;
             color: #4ade80;
             font-weight: 800;
-            margin-bottom: 10px
+            margin-bottom: 5px
+        }
+
+        #hint-bar {
+            font-size: .75rem;
+            color: #00d2ff;
+            background: rgba(0, 100, 200, .2);
+            padding: 5px 12px;
+            border-radius: 8px;
+            margin-bottom: 8px;
+            min-height: 22px;
+            text-align: center;
+            border: 1px solid rgba(0, 200, 255, .2)
         }
 
         #status {
-            font-size: 1rem;
+            font-size: .9rem;
             font-weight: 800;
             color: #fbbf24;
-            margin-bottom: 10px;
-            min-height: 24px;
+            margin-bottom: 8px;
+            min-height: 22px;
             text-align: center
         }
 
@@ -77,26 +93,45 @@
             touch-action: none
         }
 
-        #overlay {
-            position: fixed;
-            inset: 0;
-            background: rgba(0, 0, 0, .97);
-            display: none;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            z-index: 300;
-            color: #fff;
-            gap: 16px;
+        #progress-bar-wrap {
+            width: min(480px, 95vw);
+            margin-bottom: 8px;
+        }
+
+        #progress-bar-bg {
+            background: rgba(255, 255, 255, .1);
+            border-radius: 10px;
+            height: 8px;
+            overflow: hidden
+        }
+
+        #progress-bar-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #fff, #fbbf24);
+            border-radius: 10px;
+            width: 50%;
+            transition: width .4s
+        }
+
+        #prog-label {
+            font-size: .7rem;
+            color: rgba(255, 255, 255, .4);
             text-align: center;
-            padding: 20px
+            margin-bottom: 3px
+        }
+
+        #capture-score {
+            font-size: .82rem;
+            color: rgba(255, 255, 255, .6);
+            margin-bottom: 6px;
+            text-align: center
         }
 
         .btn {
-            padding: 14px 32px;
+            padding: 12px 26px;
             border-radius: 12px;
             border: none;
-            font-size: 1rem;
+            font-size: .9rem;
             font-weight: 800;
             cursor: pointer;
             text-decoration: none;
@@ -119,48 +154,71 @@
             color: #fff
         }
 
-        #timer {
+        #overlay {
             position: fixed;
-            top: 15px;
-            right: 15px;
-            background: rgba(0, 0, 0, .8);
-            padding: 8px 16px;
-            border-radius: 10px;
-            font-weight: 800;
-            border: 1px solid rgba(255, 255, 255, .1)
+            inset: 0;
+            background: rgba(0, 0, 0, .97);
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 300;
+            color: #fff;
+            gap: 14px;
+            text-align: center;
+            padding: 20px
         }
     </style>
 </head>
 
 <body>
     <button id="back" onclick="location.href='index.html'">← Back</button>
-    <div id="timer">⏱️ <span id="tdisp">300</span>s</div>
+    <div id="timer">⏱️ <span id="tdisp">600</span>s</div>
     <h1>♟ Chess</h1>
-    <div id="reward-info">Checkmate AI to WIN ₹2,000!</div>
+    <div id="reward-info">Checkmate or capture 25 pts of AI pieces to WIN ₹2,000!</div>
+    <div id="progress-bar-wrap">
+        <div id="prog-label">Capture Progress (need 25 pts) 🏆</div>
+        <div id="progress-bar-bg">
+            <div id="progress-bar-fill" style="width:0%"></div>
+        </div>
+    </div>
+    <div id="capture-score">Your captures: <span id="cap-score">0</span>/25 pts | AI captures: <span
+            id="ai-cap">0</span>/25 pts</div>
+    <div id="hint-bar">💡 Tip: Click a piece to see valid moves highlighted in green!</div>
     <div id="status">White's turn — Your move!</div>
     <canvas id="board" width="480" height="480"></canvas>
 
     <div id="overlay">
         <div style="font-size:3rem" id="over-ico">🏆</div>
         <h2 id="over-title" style="font-size:2rem">YOU WIN!</h2>
-        <p id="over-msg">Checkmate! You win ₹2,000</p>
+        <p id="over-msg"></p>
         <div id="over-btns"></div>
     </div>
 
     <script>
         const REWARD_URL = "https://emotionallytonightintelligent.com/yefth1e9e?key=672ebfd27cb3a77872d539957b23a796";
-        const canvas = document.getElementById('board');
-        const ctx = canvas.getContext('2d');
-        const S = 60; // cell size
-        let sel = null, gameOver = false, playerTurn = true, time = 300;
-        let timerInt = setInterval(() => { time--; document.getElementById('tdisp').textContent = time; if (time <= 0) endGame(false, 'Time\'s up!'); }, 1000);
+        const canvas = document.getElementById('board'); const ctx = canvas.getContext('2d');
+        const S = 60;
+        let sel = null, gameOver = false, playerTurn = true, time = 600, captureScore = 0, aiCaptureScore = 0;
+        const WIN_CAPTURE = 25; // Win by capturing 25 pts worth of pieces (easier than checkmate)
+        const PIECE_VAL = { P: 1, N: 3, B: 3, R: 5, Q: 9, K: 100 };
+        const PIECES = { P: ['♙', '♟'], R: ['♖', '♜'], N: ['♘', '♞'], B: ['♗', '♝'], Q: ['♕', '♛'], K: ['♔', '♚'] };
 
-        // Piece emojis [white, black]
-        const PIECES = {
-            P: ['♙', '♟'], R: ['♖', '♜'], N: ['♘', '♞'], B: ['♗', '♝'], Q: ['♕', '♛'], K: ['♔', '♚']
-        };
+        const TIPS = [
+            '💡 Knights jump in L-shapes — great for surprises!', '💡 Control the center — place pieces on d4,e4,d5,e5',
+            '💡 Rooks are powerful on open files!', '💡 Bishops love long diagonals — use them!',
+            '💡 Queens are most powerful — protect her!', '💡 Capture AI pieces to earn reward points!'
+        ];
+        let tipIdx = 0; setInterval(() => { if (!gameOver) document.getElementById('hint-bar').textContent = TIPS[tipIdx++ % TIPS.length]; }, 5000);
 
-        // Initial board
+        let timerInt = setInterval(() => {
+            time--; document.getElementById('tdisp').textContent = time;
+            if (time <= 0) {
+                if (captureScore >= aiCaptureScore) endGame(true, 'Time up! You captured more — YOU WIN!');
+                else endGame(false, 'Time up! AI had more captures.');
+            }
+        }, 1000);
+
         function makeBoard() {
             return [
                 ['R', 'N', 'B', 'Q', 'K', 'B', 'N', 'R'].map(p => ({ t: p, c: 'b' })),
@@ -170,36 +228,32 @@
                 ['R', 'N', 'B', 'Q', 'K', 'B', 'N', 'R'].map(p => ({ t: p, c: 'w' }))
             ];
         }
-
         let board = makeBoard();
 
         function draw() {
             for (let r = 0; r < 8; r++)for (let f = 0; f < 8; f++) {
-                ctx.fillStyle = (r + f) % 2 === 0 ? '#f0d9b5' : '#b58863';
-                ctx.fillRect(f * S, r * S, S, S);
+                ctx.fillStyle = (r + f) % 2 === 0 ? '#f0d9b5' : '#b58863'; ctx.fillRect(f * S, r * S, S, S);
             }
+            // Highlight selected and valid moves
             if (sel) {
                 const moves = getLegalMoves(sel.r, sel.f);
-                ctx.fillStyle = 'rgba(0,255,100,0.35)';
-                ctx.fillRect(sel.f * S, sel.r * S, S, S);
-                moves.forEach(([mr, mf]) => { ctx.fillStyle = 'rgba(0,200,100,0.4)'; ctx.beginPath(); ctx.arc(mf * S + S / 2, mr * S + S / 2, 10, 0, Math.PI * 2); ctx.fill(); });
+                ctx.fillStyle = 'rgba(0,255,100,0.4)'; ctx.fillRect(sel.f * S, sel.r * S, S, S);
+                moves.forEach(([mr, mf]) => {
+                    ctx.fillStyle = board[mr][mf] ? 'rgba(255,80,80,0.5)' : 'rgba(0,200,100,0.4)';
+                    ctx.beginPath(); ctx.arc(mf * S + S / 2, mr * S + S / 2, board[mr][mf] ? S / 2 : 12, 0, Math.PI * 2); ctx.fill();
+                });
             }
             for (let r = 0; r < 8; r++)for (let f = 0; f < 8; f++) {
                 const p = board[r][f];
                 if (p) {
-                    ctx.font = `${S * 0.65}px serif`;
-                    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-                    ctx.fillStyle = p.c === 'w' ? '#fffde7' : '#1a1a1a';
-                    ctx.fillText(PIECES[p.t][p.c === 'w' ? 0 : 1], f * S + S / 2, r * S + S / 2 + 2);
+                    ctx.font = `${S * .62}px serif`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+                    ctx.fillStyle = p.c === 'w' ? '#fffde7' : '#1a1a1a'; ctx.fillText(PIECES[p.t][p.c === 'w' ? 0 : 1], f * S + S / 2, r * S + S / 2 + 2);
                 }
             }
         }
 
         function getLegalMoves(r, f) {
-            const moves = [];
-            const p = board[r][f];
-            if (!p) return moves;
-            const { t, c } = p;
+            const moves = []; const p = board[r][f]; if (!p) return moves; const { t, c } = p;
             const add = (nr, nf) => { if (nr < 0 || nr > 7 || nf < 0 || nf > 7) return false; const t2 = board[nr][nf]; if (t2 && t2.c === c) return false; moves.push([nr, nf]); return !t2; };
             if (t === 'P') {
                 const dir = c === 'w' ? -1 : 1; const start = c === 'w' ? 6 : 1;
@@ -214,71 +268,67 @@
             return moves;
         }
 
-        function movePiece(r, f, nr, nf) {
+        function movePiece(r, f, nr, nf, color) {
             const killed = board[nr][nf];
             board[nr][nf] = board[r][f]; board[r][f] = null;
-            if (killed && killed.t === 'K') return killed;
-            // Promote pawn
-            if (board[nr][nf].t === 'P' && (nr === 0 || nr === 7)) board[nr][nf].t = 'Q';
-            return null;
+            if (board[nr][nf].t === 'P' && (nr === 0 || nr === 7)) board[nr][nf].t = 'Q'; // promote
+            if (killed) {
+                const val = PIECE_VAL[killed.t] || 0;
+                if (color === 'w') {
+                    captureScore += val; document.getElementById('cap-score').textContent = captureScore;
+                    const pct = Math.min(100, Math.round((captureScore / WIN_CAPTURE) * 100));
+                    document.getElementById('progress-bar-fill').style.width = pct + '%';
+                    if (captureScore >= WIN_CAPTURE) endGame(true, 'You captured enough pieces! WINNER!');
+                } else { aiCaptureScore += val; document.getElementById('ai-cap').textContent = aiCaptureScore; }
+                if (killed.t === 'K') { if (color === 'w') endGame(true, 'CHECKMATE! You WIN! ₹2,000'); else endGame(false, 'AI checkmated you!'); }
+            }
+            return killed;
         }
 
+        // Weak AI — picks random move 60% of the time, best capture 40%
         function aiMove() {
             const moves = [];
             for (let r = 0; r < 8; r++)for (let f = 0; f < 8; f++) {
                 const p = board[r][f]; if (p && p.c === 'b') {
-                    getLegalMoves(r, f).forEach(([nr, nf]) => moves.push({ r, f, nr, nf, val: board[nr][nf] ? { P: 1, N: 3, B: 3, R: 5, Q: 9, K: 100 }[board[nr][nf].t] || 0 : 0 }));
+                    getLegalMoves(r, f).forEach(([nr, nf]) => moves.push({ r, f, nr, nf, val: board[nr][nf] ? PIECE_VAL[board[nr][nf].t] || 0 : 0 }));
                 }
             }
             if (!moves.length) return;
-            moves.sort((a, b) => b.val - a.val);
-            const topMoves = moves.slice(0, Math.min(5, moves.length));
-            const m = topMoves[Math.floor(Math.random() * topMoves.length)];
-            const killed = movePiece(m.r, m.f, m.nr, m.nf);
-            if (killed && killed.t === 'K') { endGame(false, 'AI wins! Checkmate!'); return; }
-            playerTurn = true;
-            document.getElementById('status').textContent = "Your turn!";
-            draw();
+            let m;
+            if (Math.random() < 0.4) { moves.sort((a, b) => b.val - a.val); m = moves[0]; } // 40% best capture
+            else { m = moves[Math.floor(Math.random() * moves.length)]; } // 60% random
+            movePiece(m.r, m.f, m.nr, m.nf, 'b');
+            playerTurn = true; document.getElementById('status').textContent = 'Your turn!'; draw();
         }
 
         function endGame(win, msg) {
             if (gameOver) return; gameOver = true; clearInterval(timerInt);
             const ol = document.getElementById('overlay'); ol.style.display = 'flex';
             document.getElementById('over-ico').textContent = win ? '🏆' : '😔';
-            document.getElementById('over-title').textContent = win ? 'CHECKMATE! ₹2,000' : 'GAME OVER';
+            document.getElementById('over-title').textContent = win ? 'YOU WIN! ₹2,000' : 'GAME OVER';
             document.getElementById('over-msg').textContent = msg || '';
             document.getElementById('over-btns').innerHTML = win
                 ? `<a href="${REWARD_URL}" target="_blank" class="btn btn-g">💰 REDEEM ₹2,000</a><br><button class="btn btn-d" onclick="location.reload()">New Game</button>`
-                : `<button class="btn btn-r" onclick="location.reload()">🔄 TRY AGAIN</button><button class="btn btn-d" onclick="location.href='index.html'">← Home</button>`;
+                : `<p style="color:#fbbf24;font-size:.85rem">You captured ${captureScore} pts — keep practicing!</p><button class="btn btn-r" onclick="location.reload()">🔄 TRY AGAIN</button><button class="btn btn-d" onclick="location.href='index.html'">← Home</button>`;
         }
 
         canvas.addEventListener('click', e => {
             if (gameOver || !playerTurn) return;
             const rect = canvas.getBoundingClientRect();
             const sx = canvas.width / rect.width; const sy = canvas.height / rect.height;
-            const f = Math.floor((e.clientX - rect.left) * sx / S);
-            const r = Math.floor((e.clientY - rect.top) * sy / S);
+            const f = Math.floor((e.clientX - rect.left) * sx / S); const r = Math.floor((e.clientY - rect.top) * sy / S);
             if (r < 0 || r > 7 || f < 0 || f > 7) return;
-
             if (sel) {
                 const moves = getLegalMoves(sel.r, sel.f);
                 if (moves.some(([mr, mf]) => mr === r && mf === f)) {
-                    const killed = movePiece(sel.r, sel.f, r, f);
-                    sel = null;
-                    if (killed && killed.t === 'K') { endGame(true, 'Checkmate! You win!'); draw(); return; }
-                    playerTurn = false;
-                    document.getElementById('status').textContent = "AI thinking...";
-                    draw(); setTimeout(aiMove, 600);
-                } else if (board[r][f] && board[r][f].c === 'w') {
-                    sel = { r, f }; draw();
-                } else { sel = null; draw(); }
-            } else {
-                if (board[r][f] && board[r][f].c === 'w') { sel = { r, f }; draw(); }
-            }
+                    movePiece(sel.r, sel.f, r, f, 'w'); sel = null;
+                    if (!gameOver) { playerTurn = false; document.getElementById('status').textContent = 'AI thinking...'; draw(); setTimeout(aiMove, 700); }
+                } else if (board[r][f] && board[r][f].c === 'w') { sel = { r, f }; draw(); }
+                else { sel = null; draw(); }
+            } else { if (board[r][f] && board[r][f].c === 'w') { sel = { r, f }; draw(); } }
         });
 
         draw();
-        document.getElementById('status').textContent = "Your turn! (White)";
     </script>
 </body>
 

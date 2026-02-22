@@ -30,19 +30,70 @@
             right: 0;
             display: flex;
             justify-content: center;
-            gap: 20px;
+            gap: 12px;
+            z-index: 100;
+            pointer-events: none;
+            flex-wrap: wrap;
+            padding: 0 10px
+        }
+
+        .hbox {
+            background: rgba(0, 0, 0, .85);
+            color: #fff;
+            padding: 6px 14px;
+            border-radius: 10px;
+            font-weight: 800;
+            font-size: 0.85rem;
+            border: 1px solid rgba(255, 255, 255, .15)
+        }
+
+        #progress-bar-wrap {
+            position: fixed;
+            top: 60px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 280px;
             z-index: 100;
             pointer-events: none
         }
 
-        .hbox {
-            background: rgba(0, 0, 0, .8);
-            color: #fff;
-            padding: 8px 16px;
-            border-radius: 10px;
+        #progress-bar-label {
+            color: #fbbf24;
+            font-size: .7rem;
             font-weight: 800;
-            font-size: 0.9rem;
-            border: 1px solid rgba(255, 255, 255, .1)
+            text-align: center;
+            margin-bottom: 3px
+        }
+
+        #progress-bar-bg {
+            background: rgba(255, 255, 255, .1);
+            border-radius: 10px;
+            height: 8px;
+            overflow: hidden
+        }
+
+        #progress-bar-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #4ade80, #fbbf24);
+            border-radius: 10px;
+            width: 0%;
+            transition: width .3s
+        }
+
+        #toast {
+            position: fixed;
+            top: 90px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(0, 200, 100, .95);
+            color: #000;
+            padding: 10px 22px;
+            border-radius: 20px;
+            font-weight: 900;
+            font-size: 1rem;
+            z-index: 500;
+            display: none;
+            white-space: nowrap
         }
 
         #overlay {
@@ -63,7 +114,8 @@
         #overlay h1 {
             font-size: 2.2rem;
             background: linear-gradient(135deg, #4ade80, #fbbf24);
-            background-clip: text; -webkit-background-clip: text;
+            -webkit-background-clip: text;
+            background-clip: text;
             -webkit-text-fill-color: transparent
         }
 
@@ -81,11 +133,6 @@
 
         .btn-g {
             background: #4ade80;
-            color: #000
-        }
-
-        .btn-y {
-            background: #fbbf24;
             color: #000
         }
 
@@ -111,18 +158,19 @@
         }
 
         .cbtn {
-            width: 70px;
-            height: 70px;
-            background: rgba(255, 255, 255, .1);
+            width: 75px;
+            height: 75px;
+            background: rgba(255, 255, 255, .12);
             backdrop-filter: blur(5px);
             border: 2px solid rgba(255, 255, 255, .2);
             border-radius: 50%;
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 1.8rem;
+            font-size: 2rem;
             cursor: pointer;
-            -webkit-tap-highlight-color: transparent
+            -webkit-tap-highlight-color: transparent;
+            user-select: none
         }
 
         #back {
@@ -135,19 +183,34 @@
             border: none;
             padding: 8px 16px;
             border-radius: 10px;
-            cursor: pointer;
-            font-size: 0.9rem
+            cursor: pointer
+        }
+
+        #lives {
+            position: fixed;
+            top: 15px;
+            right: 15px;
+            z-index: 100;
+            font-size: 1.2rem;
+            letter-spacing: 4px
         }
     </style>
 </head>
 
 <body>
     <button id="back" onclick="location.href='index.html'">← Back</button>
+    <div id="lives">❤️❤️❤️</div>
     <div id="hud">
-        <div class="hbox">🏆 Score: <span id="score">0</span></div>
-        <div class="hbox">⏱️ <span id="tdisp">90</span>s</div>
-        <div class="hbox">🎯 Goal: 500pts</div>
+        <div class="hbox">🏆 <span id="score">0</span> / 300</div>
+        <div class="hbox">⏱️ <span id="tdisp">120</span>s</div>
     </div>
+    <div id="progress-bar-wrap">
+        <div id="progress-bar-label">Progress to ₹5,000 reward 🎯</div>
+        <div id="progress-bar-bg">
+            <div id="progress-bar-fill"></div>
+        </div>
+    </div>
+    <div id="toast">🔥 Keep going!</div>
     <div id="ctrls">
         <div class="cbtn" id="lbtn">◀</div>
         <div class="cbtn" id="rbtn">▶</div>
@@ -156,8 +219,9 @@
         <div style="font-size:3rem">🚀</div>
         <h1>Sky Rush 3D</h1>
         <p style="color:#fbbf24;font-size:1.2rem;font-weight:800">WIN ₹5,000!</p>
-        <p style="color:rgba(255,255,255,.6)">Reach 500 points in 90s — dodge obstacles!</p>
-        <p style="color:rgba(255,255,255,.5);font-size:.85rem">← → keys or tap buttons to move lanes</p>
+        <p style="color:rgba(255,255,255,.7)">Score <strong>300 points</strong> in 120 seconds</p>
+        <p style="color:rgba(255,255,255,.5);font-size:.85rem">You have <strong>3 lives</strong> — dodge obstacles!</p>
+        <p style="color:#4ade80;font-size:.8rem">← → keys or tap buttons</p>
         <button class="btn btn-g" onclick="startGame()">▶ PLAY NOW</button>
     </div>
 
@@ -166,7 +230,13 @@
         const W = window.innerWidth, H = window.innerHeight;
         const REWARD_URL = "https://emotionallytonightintelligent.com/yefth1e9e?key=672ebfd27cb3a77872d539957b23a796";
         const LANES = [-2.2, 0, 2.2];
-        let currentLane = 1, targetX = 0, score = 0, speed = 0.25, gameActive = false, time = 90, spawnTimer = 0, animId, scoreTimer;
+        // Win-friendly settings
+        const WIN_SCORE = 300, TIME_LIMIT = 120, MAX_LIVES = 3;
+        let currentLane = 1, targetX = 0, score = 0, speed = 0.22, gameActive = false, time = TIME_LIMIT;
+        let lives = MAX_LIVES, spawnTimer = 0, animId, scoreTimer, toastTimer;
+        let lastMilestone = 0, invincible = false, invincibleTimer = 0;
+        // Obstacle pattern — not fully random, gives player safe lane most times
+        let lastObsLane = -1;
 
         const renderer = new THREE.WebGLRenderer({ antialias: true });
         renderer.setSize(W, H); renderer.shadowMap.enabled = true;
@@ -174,30 +244,26 @@
         document.body.insertBefore(renderer.domElement, document.body.firstChild);
 
         const scene = new THREE.Scene();
-        scene.fog = new THREE.FogExp2(0x050505, 0.015);
+        scene.fog = new THREE.FogExp2(0x050505, 0.012);
         scene.background = new THREE.Color(0x050505);
 
         const camera = new THREE.PerspectiveCamera(70, W / H, 0.1, 200);
         camera.position.set(0, 3.5, 6); camera.lookAt(0, 1, -20);
 
-        // Lights
-        scene.add(new THREE.AmbientLight(0xffffff, 0.5));
+        scene.add(new THREE.AmbientLight(0xffffff, 0.6));
         const dLight = new THREE.DirectionalLight(0x4ade80, 1.5);
         dLight.position.set(5, 20, 5); scene.add(dLight);
-        const pLight = new THREE.PointLight(0x4ade80, 2, 30);
-        pLight.position.set(0, 5, -5); scene.add(pLight);
 
         // Stars
         const starGeo = new THREE.BufferGeometry();
-        const starVerts = [];
-        for (let i = 0; i < 2000; i++) { starVerts.push((Math.random() - 0.5) * 200, (Math.random() - 0.5) * 200, -Math.random() * 200); }
-        starGeo.setAttribute('position', new THREE.Float32BufferAttribute(starVerts, 3));
+        const sv = []; for (let i = 0; i < 2000; i++)sv.push((Math.random() - .5) * 200, (Math.random() - .5) * 200, -Math.random() * 200);
+        starGeo.setAttribute('position', new THREE.Float32BufferAttribute(sv, 3));
         scene.add(new THREE.Points(starGeo, new THREE.PointsMaterial({ color: 0xffffff, size: 0.2 })));
 
         // Player
         const pMat = new THREE.MeshPhongMaterial({ color: 0x4ade80, emissive: 0x1a6630 });
         const player = new THREE.Mesh(new THREE.BoxGeometry(0.9, 0.9, 1.2), pMat);
-        player.position.set(0, 0.5, 0); player.castShadow = true; scene.add(player);
+        player.position.set(0, 0.5, 0); scene.add(player);
 
         // Road pool
         const road = [];
@@ -205,19 +271,12 @@
         const lineMat = new THREE.MeshPhongMaterial({ color: 0xfbbf24, emissive: 0x443300 });
         for (let i = 0; i < 12; i++) {
             const seg = new THREE.Mesh(new THREE.BoxGeometry(7.5, 0.2, 15), roadMat);
-            seg.position.set(0, -0.1, -i * 15);
-            seg.receiveShadow = true; scene.add(seg); road.push(seg);
+            seg.position.set(0, -0.1, -i * 15); seg.receiveShadow = true; scene.add(seg); road.push(seg);
             for (let j = -1; j <= 1; j += 2) {
-                const line = new THREE.Mesh(new THREE.BoxGeometry(0.15, 0.05, 15), lineMat);
+                const line = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.05, 15), lineMat);
                 line.position.set(j * 1.1, 0.05, -i * 15); scene.add(line);
             }
         }
-        // Walls
-        const wallMat = new THREE.MeshPhongMaterial({ color: 0x0a0a1a });
-        const lWall = new THREE.Mesh(new THREE.BoxGeometry(0.5, 5, 300), wallMat);
-        lWall.position.set(-4.5, 2, -100); scene.add(lWall);
-        const rWall = new THREE.Mesh(new THREE.BoxGeometry(0.5, 5, 300), wallMat);
-        rWall.position.set(4.5, 2, -100); scene.add(rWall);
 
         const obstMats = [
             new THREE.MeshPhongMaterial({ color: 0xff4500, emissive: 0x660000 }),
@@ -226,24 +285,64 @@
         ];
         const obsts = [];
 
+        // Pick an obstacle lane that is NOT the same as player's current lane most of the time
+        function pickObstacleLane() {
+            // 70% chance obstacle avoids current player lane
+            if (Math.random() < 0.7) {
+                const options = LANES.map((_, i) => i).filter(i => i !== currentLane);
+                return options[Math.floor(Math.random() * options.length)];
+            }
+            return Math.floor(Math.random() * 3);
+        }
+
         function spawnObs() {
-            const lane = Math.floor(Math.random() * 3);
+            const lane = pickObstacleLane();
+            lastObsLane = lane;
             const mat = obstMats[Math.floor(Math.random() * obstMats.length)];
-            const h = 0.8 + Math.random() * 0.8;
-            const obs = new THREE.Mesh(new THREE.BoxGeometry(0.9, h, 0.9), mat);
-            obs.position.set(LANES[lane], h / 2, -80);
+            const obs = new THREE.Mesh(new THREE.BoxGeometry(0.85, 1.2, 0.85), mat);
+            obs.position.set(LANES[lane], 0.6, -80);
             obs.castShadow = true; scene.add(obs);
             obsts.push({ mesh: obs, lane });
         }
 
+        function showToast(msg, col) {
+            clearTimeout(toastTimer);
+            const t = document.getElementById('toast');
+            t.textContent = msg; t.style.background = col || 'rgba(0,200,100,.95)';
+            t.style.color = col ? '#fff' : '#000';
+            t.style.display = 'block';
+            toastTimer = setTimeout(() => t.style.display = 'none', 1800);
+        }
+
+        function updateLives() {
+            const l = document.getElementById('lives');
+            l.textContent = '❤️'.repeat(lives) + '🖤'.repeat(MAX_LIVES - lives);
+        }
+
+        function loseLife() {
+            if (invincible) return;
+            lives--; updateLives();
+            if (lives <= 0) { endGame(false); return; }
+            // Brief invincibility after hit
+            invincible = true; pMat.color.set(0xff4444);
+            showToast('💔 Ouch! ' + (lives) + ' lives left!', 'rgba(200,50,50,.95)');
+            setTimeout(() => { invincible = false; pMat.color.set(0x4ade80); }, 2000);
+        }
+
         function startGame() {
             document.getElementById('overlay').style.display = 'none';
-            gameActive = true; score = 0; time = 90; speed = 0.25;
-            spawnTimer = 0; currentLane = 1; targetX = LANES[1];
+            gameActive = true; score = 0; time = TIME_LIMIT; speed = 0.22; lives = MAX_LIVES;
+            spawnTimer = 0; currentLane = 1; targetX = LANES[1]; lastMilestone = 0;
             document.getElementById('score').textContent = 0;
-            document.getElementById('tdisp').textContent = 90;
+            document.getElementById('tdisp').textContent = TIME_LIMIT;
+            document.getElementById('progress-bar-fill').style.width = '0%';
+            updateLives();
             obsts.forEach(o => scene.remove(o.mesh)); obsts.length = 0;
-            scoreTimer = setInterval(() => { if (!gameActive) return; time--; document.getElementById('tdisp').textContent = time; if (time <= 0) endGame(false); }, 1000);
+            scoreTimer = setInterval(() => {
+                if (!gameActive) return;
+                time--; document.getElementById('tdisp').textContent = time;
+                if (time <= 0 && score < WIN_SCORE) endGame(false);
+            }, 1000);
             animate();
         }
 
@@ -251,70 +350,62 @@
             gameActive = false; cancelAnimationFrame(animId); clearInterval(scoreTimer);
             const ol = document.getElementById('overlay'); ol.style.display = 'flex';
             if (win) {
-                ol.innerHTML = `<div style="font-size:3rem">🏆</div><h1 style="font-size:2rem;color:#4ade80">YOU WON! ₹5,000</h1><p style="color:rgba(255,255,255,.6)">Incredible! Score: ${score}</p><a href="${REWARD_URL}" target="_blank" class="btn btn-g">💰 REDEEM ₹5,000</a><button class="btn btn-d" onclick="location.reload()">Play Again</button><button class="btn btn-d" onclick="location.href='index.html'">← Home</button>`;
+                ol.innerHTML = `<div style="font-size:3rem">🏆</div><h1 style="font-size:2rem;color:#4ade80">YOU WIN! ₹5,000</h1><p style="color:rgba(255,255,255,.7)">Amazing run! Score: ${score}</p><a href="${REWARD_URL}" target="_blank" class="btn btn-g">💰 REDEEM ₹5,000</a><br><button class="btn btn-d" onclick="location.reload()">Play Again</button><button class="btn btn-d" onclick="location.href='index.html'">← Home</button>`;
             } else {
-                ol.innerHTML = `<div style="font-size:3rem">💥</div><h1 style="font-size:2rem;color:#ff4500">GAME OVER!</h1><p style="color:rgba(255,255,255,.6)">Score: ${score} (Goal: 500)</p><button class="btn btn-r" onclick="location.reload()">🔄 TRY AGAIN</button><button class="btn btn-d" onclick="location.href='index.html'">← Home</button>`;
+                const pct = Math.round((score / WIN_SCORE) * 100);
+                ol.innerHTML = `<div style="font-size:3rem">${pct >= 80 ? '😤' : '💥'}</div><h1 style="font-size:2rem;color:#ff4500">GAME OVER!</h1><p style="color:rgba(255,255,255,.7)">Score: ${score}/${WIN_SCORE} (${pct}% there!)</p><p style="color:#fbbf24;font-size:.9rem">${pct >= 80 ? 'SO CLOSE! Try once more!' : pct >= 50 ? 'Great effort! Keep going!' : 'You can do it!'}</p><button class="btn btn-r" onclick="location.reload()">🔄 TRY AGAIN</button><button class="btn btn-d" onclick="location.href='index.html'">← Home</button>`;
             }
         }
 
         function animate() {
             animId = requestAnimationFrame(animate);
             if (!gameActive) return;
-            // Smooth lane change
             player.position.x += (targetX - player.position.x) * 0.12;
-            // Fun wobble
-            player.rotation.z += (0 - player.rotation.z) * 0.1;
 
-            // Move road
-            road.forEach(seg => {
-                seg.position.z += speed;
-                if (seg.position.z > 15) seg.position.z -= 180;
-                // Update lane lines too (parented would be better but this works)
-            });
+            road.forEach(seg => { seg.position.z += speed; if (seg.position.z > 15) seg.position.z -= 180; });
 
-            // Spawn and move obstacles
             spawnTimer += speed;
-            if (spawnTimer > 3 + Math.random() * 2) { spawnTimer = 0; spawnObs(); }
+            // Slower spawn at start, increases with score
+            const spawnRate = Math.max(1.5, 3.5 - score * 0.005);
+            if (spawnTimer > spawnRate + Math.random() * 1.5) { spawnTimer = 0; spawnObs(); }
 
             for (let i = obsts.length - 1; i >= 0; i--) {
                 const o = obsts[i];
-                o.mesh.position.z += speed;
-                o.mesh.rotation.y += 0.02;
-                // Check collision
-                if (o.mesh.position.z > -0.5 && o.mesh.position.z < 2) {
-                    if (Math.abs(o.mesh.position.x - player.position.x) < 0.8) { endGame(false); return; }
+                o.mesh.position.z += speed; o.mesh.rotation.y += 0.02;
+                if (!invincible && o.mesh.position.z > -0.5 && o.mesh.position.z < 2) {
+                    if (Math.abs(o.mesh.position.x - player.position.x) < 0.8) { loseLife(); scene.remove(o.mesh); obsts.splice(i, 1); continue; }
                 }
-                // Score + remove
                 if (o.mesh.position.z > 6) {
                     scene.remove(o.mesh); obsts.splice(i, 1);
                     score += 10; document.getElementById('score').textContent = score;
-                    if (score >= 500) endGame(true);
+                    const pct = Math.min(100, Math.round((score / WIN_SCORE) * 100));
+                    document.getElementById('progress-bar-fill').style.width = pct + '%';
+                    // Milestone toasts
+                    if (score >= 50 && lastMilestone < 50) { lastMilestone = 50; showToast('🔥 50 pts! Keep it up!'); }
+                    else if (score >= 100 && lastMilestone < 100) { lastMilestone = 100; showToast('⚡ 100 pts! You\'re on fire!'); }
+                    else if (score >= 150 && lastMilestone < 150) { lastMilestone = 150; showToast('💪 Halfway there!'); }
+                    else if (score >= 200 && lastMilestone < 200) { lastMilestone = 200; showToast('🚀 200 pts! Almost won!'); }
+                    else if (score >= 250 && lastMilestone < 250) { lastMilestone = 250; showToast('🏆 250/300! SO CLOSE!'); }
+                    if (score >= WIN_SCORE) endGame(true);
                 }
             }
 
-            speed = Math.min(0.9, 0.25 + score * 0.0006);
+            speed = Math.min(0.75, 0.22 + score * 0.0005);
             renderer.render(scene, camera);
         }
 
         // Controls
         document.addEventListener('keydown', e => {
             if (!gameActive) return;
-            if (e.key === 'ArrowLeft' && currentLane > 0) { currentLane--; targetX = LANES[currentLane]; player.rotation.z = 0.2; }
-            if (e.key === 'ArrowRight' && currentLane < 2) { currentLane++; targetX = LANES[currentLane]; player.rotation.z = -0.2; }
+            if (e.key === 'ArrowLeft' && currentLane > 0) { currentLane--; targetX = LANES[currentLane]; }
+            if (e.key === 'ArrowRight' && currentLane < 2) { currentLane++; targetX = LANES[currentLane]; }
         });
-        document.getElementById('lbtn').addEventListener('touchstart', e => { e.preventDefault(); if (!gameActive || currentLane <= 0) return; currentLane--; targetX = LANES[currentLane]; });
-        document.getElementById('rbtn').addEventListener('touchstart', e => { e.preventDefault(); if (!gameActive || currentLane >= 2) return; currentLane++; targetX = LANES[currentLane]; });
+        document.getElementById('lbtn').addEventListener('touchstart', e => { e.preventDefault(); if (!gameActive || currentLane <= 0) return; currentLane--; targetX = LANES[currentLane]; }, { passive: false });
+        document.getElementById('rbtn').addEventListener('touchstart', e => { e.preventDefault(); if (!gameActive || currentLane >= 2) return; currentLane++; targetX = LANES[currentLane]; }, { passive: false });
         document.getElementById('lbtn').addEventListener('click', () => { if (!gameActive || currentLane <= 0) return; currentLane--; targetX = LANES[currentLane]; });
         document.getElementById('rbtn').addEventListener('click', () => { if (!gameActive || currentLane >= 2) return; currentLane++; targetX = LANES[currentLane]; });
 
-        // Resize
-        window.addEventListener('resize', () => {
-            camera.aspect = window.innerWidth / window.innerHeight;
-            camera.updateProjectionMatrix();
-            renderer.setSize(window.innerWidth, window.innerHeight);
-        });
-
-        // Render start screen once
+        window.addEventListener('resize', () => { camera.aspect = window.innerWidth / window.innerHeight; camera.updateProjectionMatrix(); renderer.setSize(window.innerWidth, window.innerHeight); });
         renderer.render(scene, camera);
     </script>
 </body>
