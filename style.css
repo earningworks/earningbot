@@ -19,8 +19,8 @@ body {
     font-family: 'Outfit', sans-serif;
     background-color: var(--bg-black);
     color: var(--text-main);
-    overflow-x: hidden;
     line-height: 1.4;
+    /* overflow-x removed — allows ad banners/pop-unders to render freely */
 }
 
 /* --- Header --- */
@@ -43,6 +43,7 @@ body {
     font-weight: 800;
     text-align: center;
     background: linear-gradient(135deg, var(--accent-green), var(--accent-gold));
+    background-clip: text;
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
 }
